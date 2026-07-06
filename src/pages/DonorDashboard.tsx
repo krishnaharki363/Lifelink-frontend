@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
-import { Activity, Bell, Droplets, Edit2, History, Lock, LogOut, Settings, User } from 'lucide-react';
+import { Activity, Bell, Droplets, Edit2, History, Lock, LogOut, Settings, User, Heart, Calendar, MapPin, ClipboardCheck, ArrowRight, Check, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-type DashboardTab = 'profile' | 'history' | 'requests' | 'settings';
+type DashboardTab = 'profile' | 'history' | 'requests' | 'settings' | 'register-donation';
 
 type DonationRecord = {
   date: string;
@@ -38,6 +38,33 @@ type DonorProfile = {
   onMedication: string;
   medicalConditions: string;
 };
+
+const PREDEFINED_BRANCHES = [
+  {
+    name: 'Itori Branch',
+    address: 'Kuta expressway, Ogun state',
+    state: 'Ogun',
+    map: 'https://maps.google.com/?q=Kuta+expressway,+Ogun+state'
+  },
+  {
+    name: 'Lagos Island Blood Bank',
+    address: 'Broad Street, Lagos Island',
+    state: 'Lagos',
+    map: 'https://maps.google.com/?q=Broad+Street,+Lagos'
+  },
+  {
+    name: 'Kathmandu Central Blood Bank',
+    address: 'Red Cross Marg, Kalimati, Kathmandu',
+    state: 'Bagmati',
+    map: 'https://maps.google.com/?q=Kalimati,+Kathmandu'
+  },
+  {
+    name: 'Pokhara Regional Donor Unit',
+    address: 'Siddhartha Highway, Pokhara',
+    state: 'Gandaki',
+    map: 'https://maps.google.com/?q=Siddhartha+Highway,+Pokhara'
+  }
+];
 
 export const DonorDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -76,8 +103,28 @@ export const DonorDashboard: React.FC = () => {
     { title: 'A- donation needed', location: 'City Clinic', date: '2025-05-18', status: 'Completed' },
   ]);
 
+  // States for Blood Donation Registration Form (inspired by image)
+  const [regBranchName, setRegBranchName] = useState('Itori Branch');
+  const [regAddress, setRegAddress] = useState('Kuta expressway, Ogun state');
+  const [regMap, setRegMap] = useState('https://maps.google.com/?q=Kuta+expressway,+Ogun+state');
+  const [regState, setRegState] = useState('Ogun');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regDate, setRegDate] = useState('');
+  const [regTime, setRegTime] = useState('09:00');
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  
+  // Registration Success details state
+  const [showSuccessCard, setShowSuccessCard] = useState(false);
+  const [lastRegId, setLastRegId] = useState('');
+
   useEffect(() => {
     const displayName = user?.firstName || user?.name || (user?.email ? user.email.split('@')[0] : 'Donor');
+    const uName = user?.username || (user?.email ? user.email.split('@')[0] : 'donor123');
     setProfile((prev) => ({
       ...prev,
       fullName: displayName,
@@ -86,6 +133,16 @@ export const DonorDashboard: React.FC = () => {
       province: user?.state ?? prev.province,
       district: user?.city ?? prev.district,
     }));
+
+    // Prefill registration fields
+    setRegEmail(user?.email || '');
+    setRegPhone(user?.phone || '08031234567');
+    setRegUsername(uName);
+    
+    // Set default donation date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setRegDate(tomorrow.toISOString().split('T')[0]);
   }, [user]);
 
   const requestCount = donationRequests.length;
