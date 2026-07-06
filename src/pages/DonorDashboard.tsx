@@ -1,201 +1,298 @@
-import React, { useState } from 'react';
-import { Activity, LogOut, User, History, Bell, Settings, Droplets, Edit2, Lock } from 'lucide-react';
+
+import React, { useEffect, useState } from 'react';
+import { Activity, Bell, Droplets, Edit2, History, Lock, LogOut, Settings, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-type DashboardTab = 'overview' | 'profile' | 'history' | 'requests' | 'settings';
+type DashboardTab = 'profile' | 'history' | 'requests' | 'settings';
+
+type DonationRecord = {
+  date: string;
+  hospital: string;
+  location: string;
+  status: string;
+};
+
+type RequestRecord = {
+  title: string;
+  location: string;
+  date: string;
+  status: string;
+};
+
+type DonorProfile = {
+  fullName: string;
+  email: string;
+  phone: string;
+  bloodGroup: string;
+  dateOfBirth: string;
+  province: string;
+  district: string;
+  municipality: string;
+  address: string;
+  status: string;
+  availability: string;
+  preferredContactMethod: string;
+  weight: string;
+  donatedBefore: string;
+  currentlyHealthy: string;
+  onMedication: string;
+  medicalConditions: string;
+};
 
 export const DonorDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [availabilityStatus, setAvailabilityStatus] = useState('Available');
+  const [profile, setProfile] = useState<DonorProfile>({
+    fullName: 'Donor',
+    email: '',
+    phone: '',
+    bloodGroup: 'O+',
+    dateOfBirth: '1990-01-01',
+    province: '',
+    district: '',
+    municipality: '',
+    address: '',
+    status: 'Pending Verification',
+    availability: 'Available',
+    preferredContactMethod: 'Phone Call',
+    weight: '',
+    donatedBefore: 'No',
+    currentlyHealthy: 'Yes',
+    onMedication: 'No',
+    medicalConditions: '',
+  });
 
-  const displayName = user?.firstName || user?.name || (user?.email ? user.email.split('@')[0] : 'Donor');
-  const bloodType = user?.bloodType || 'O+';
-  const location = [user?.city, user?.state].filter(Boolean).join(', ') || 'Not provided';
-  const status = 'Active';
-  const donations = 3;
-  const lastDonation = '2024-06-15';
-  const nextEligible = '2024-09-15';
+  const [donationHistory, setDonationHistory] = useState<DonationRecord[]>([
+    { date: '2024-06-15', hospital: 'City Blood Bank', location: 'Kathmandu', status: 'Completed' },
+    { date: '2024-03-10', hospital: 'Red Cross Center', location: 'Pokhara', status: 'Completed' },
+  ]);
 
-  const tabs = [
-    { key: 'overview', label: 'Dashboard', icon: Activity },
-    { key: 'profile', label: 'Profile', icon: User },
-    { key: 'history', label: 'History', icon: History },
-    { key: 'requests', label: 'Requests', icon: Bell },
-    { key: 'settings', label: 'Settings', icon: Settings },
-  ];
+  const [donationRequests, setDonationRequests] = useState<RequestRecord[]>([
+    { title: 'O+ urgent request', location: 'Central Hospital', date: '2025-06-25', status: 'Pending' },
+    { title: 'A- donation needed', location: 'City Clinic', date: '2025-05-18', status: 'Completed' },
+  ]);
 
-  const renderOverview = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1.25rem' }}>
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6', padding: '1.25rem' }}>
-        <p style={{ margin: '0 0 0.5rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Registration Status</p>
-        <strong style={{ fontSize: '1.1rem' }}>{status}</strong>
-      </div>
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6', padding: '1.25rem' }}>
-        <p style={{ margin: '0 0 0.5rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Blood Type</p>
-        <strong style={{ fontSize: '1.1rem' }}>{bloodType}</strong>
-      </div>
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6', padding: '1.25rem' }}>
-        <p style={{ margin: '0 0 0.5rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Total Donations</p>
-        <strong style={{ fontSize: '1.1rem' }}>{donations}</strong>
-      </div>
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6', padding: '1.25rem' }}>
-        <p style={{ margin: '0 0 0.5rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Next Eligible</p>
-        <strong style={{ fontSize: '1.1rem' }}>{new Date(nextEligible).toLocaleDateString()}</strong>
-      </div>
+  useEffect(() => {
+    const displayName = user?.firstName || user?.name || (user?.email ? user.email.split('@')[0] : 'Donor');
+    setProfile((prev) => ({
+      ...prev,
+      fullName: displayName,
+      email: user?.email ?? prev.email,
+      bloodGroup: user?.bloodType ?? prev.bloodGroup,
+      province: user?.state ?? prev.province,
+      district: user?.city ?? prev.district,
+    }));
+  }, [user]);
+
+  const requestCount = donationRequests.length;
+  const pastDonations = donationHistory.length;
+  const nextEligible = donationHistory.length ? new Date(donationHistory[0].date).toLocaleDateString() : '—';
+
+  const handleProfileSave = () => {
+    setMessage({ type: 'success', text: 'Profile changes saved successfully.' });
+    setIsEditing(false);
+  };
+
+  const handleAvailabilityUpdate = (status: string) => {
+    setAvailabilityStatus(status);
+    setProfile((prev) => ({ ...prev, availability: status }));
+    setMessage({ type: 'success', text: `Availability updated to ${status}.` });
+  };
+
+  const handlePasswordChange = () => {
+    setMessage({ type: 'success', text: 'Password update request submitted.' });
+    setShowChangePassword(false);
+  };
+
+  const renderQuickButtons = () => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      <button onClick={() => setActiveTab('profile')} type="button" className="dash-action-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <User size={20} />
+          <div>
+            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.92rem' }}>My Profile</p>
+            <strong style={{ fontSize: '1.1rem' }}>View details</strong>
+          </div>
+        </div>
+      </button>
+      <button onClick={() => setActiveTab('history')} type="button" className="dash-action-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <History size={20} />
+          <div>
+            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.92rem' }}>Donation History</p>
+            <strong style={{ fontSize: '1.1rem' }}>{pastDonations} past donations</strong>
+          </div>
+        </div>
+      </button>
+      <button onClick={() => setActiveTab('requests')} type="button" className="dash-action-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Bell size={20} />
+          <div>
+            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.92rem' }}>Donation Requests</p>
+            <strong style={{ fontSize: '1.1rem' }}>{requestCount} requests</strong>
+          </div>
+        </div>
+      </button>
     </div>
   );
 
   const renderProfile = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h3 style={{ margin: 0 }}>Personal Information</h3>
-          <button
-            type="button"
-            onClick={() => setIsEditing(!isEditing)}
-            style={{ background: '#f7f7f7', border: '1px solid #e6e6e6', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
+    <div>
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+          <div>
+            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.95rem' }}>Profile snapshot</p>
+            <h2 style={{ margin: '0.5rem 0 0' }}>Your donor profile</h2>
+          </div>
+          <button type="button" onClick={() => setIsEditing((prev) => !prev)} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
             <Edit2 size={16} /> {isEditing ? 'Save' : 'Edit'}
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        <div className="card-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.5rem' }}>
           <div>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Full Name</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>{displayName}</p>
+            <label>Full Name</label>
+            <input type="text" value={profile.fullName} disabled />
           </div>
           <div>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Email</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>{user?.email}</p>
+            <label>Email</label>
+            <input type="email" value={profile.email} disabled />
           </div>
           <div>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Phone</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>Not provided</p>
+            <label>Phone</label>
+            <input type="tel" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} disabled={!isEditing} />
           </div>
           <div>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Blood Type</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>{bloodType}</p>
+            <label>Blood Group</label>
+            <input type="text" value={profile.bloodGroup} disabled />
           </div>
           <div>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Location</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>{location}</p>
+            <label>Location</label>
+            <input type="text" value={`${profile.municipality || ''} ${profile.district ? `, ${profile.district}` : ''}`} disabled />
           </div>
           <div>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Last Donation</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>{new Date(lastDonation).toLocaleDateString()}</p>
+            <label>Availability</label>
+            <input type="text" value={profile.availability} disabled />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label>Address</label>
+            <textarea value={profile.address} disabled={!isEditing} style={{ minHeight: '90px' }} />
           </div>
         </div>
-      </div>
 
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6' }}>
-        <h3 style={{ margin: '0 0 1.5rem' }}>Quick Stats</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ background: '#f7f7f7', padding: '1rem', borderRadius: '10px' }}>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Total Lives Helped</p>
-            <p style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>{donations * 3}</p>
+        {isEditing && (
+          <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={handleProfileSave} className="btn-primary">Save profile</button>
           </div>
-          <div style={{ background: '#f7f7f7', padding: '1rem', borderRadius: '10px' }}>
-            <p style={{ margin: '0 0 0.3rem', color: 'var(--text-300)', fontSize: '0.85rem' }}>Member Since</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>2024</p>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
 
   const renderHistory = () => (
-    <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6' }}>
-      <h3 style={{ margin: '0 0 1.5rem' }}>Donation History</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {[
-          { date: '2024-06-15', hospital: 'City Blood Bank', status: 'Completed' },
-          { date: '2024-03-10', hospital: 'Red Cross Center', status: 'Completed' },
-          { date: '2023-12-05', hospital: 'Central Hospital', status: 'Completed' },
-        ].map((donation) => (
-          <div key={donation.date} style={{ border: '1px solid #e6e6e6', padding: '1rem', borderRadius: '10px', background: '#f7f7f7' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ margin: '0 0 0.3rem', fontWeight: 500 }}>{donation.hospital}</p>
-                <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.9rem' }}>{new Date(donation.date).toLocaleDateString()}</p>
-              </div>
-              <span style={{ background: '#111111', color: 'white', padding: '0.3rem 0.75rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 500 }}>{donation.status}</span>
+    <div>
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2 style={{ margin: '0 0 0.5rem' }}>Donation history</h2>
+            <p style={{ margin: 0, color: 'var(--text-300)' }}>Track your blood donations and eligibility.</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.75rem', width: '100%' }}>
+            <div className="dashboard-card" style={{ padding: '1rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-300)' }}>Donations</p>
+              <strong style={{ display: 'block', marginTop: '0.5rem', fontSize: '1.5rem' }}>{pastDonations}</strong>
+            </div>
+            <div className="dashboard-card" style={{ padding: '1rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-300)' }}>Requests</p>
+              <strong style={{ display: 'block', marginTop: '0.5rem', fontSize: '1.5rem' }}>{requestCount}</strong>
+            </div>
+            <div className="dashboard-card" style={{ padding: '1rem' }}>
+              <p style={{ margin: 0, color: 'var(--text-300)' }}>Next eligible</p>
+              <strong style={{ display: 'block', marginTop: '0.5rem', fontSize: '1.5rem' }}>{nextEligible}</strong>
             </div>
           </div>
-        ))}
+        </div>
+
+        <div className="card-grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
+          {donationHistory.map((item) => (
+            <div key={item.date} className="dashboard-card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <p style={{ margin: 0, color: 'var(--text-300)' }}>{new Date(item.date).toLocaleDateString()}</p>
+                <span style={{ color: item.status === 'Completed' ? '#0b6623' : '#b23e3e', fontWeight: 600 }}>{item.status}</span>
+              </div>
+              <h3 style={{ margin: '0 0 0.35rem' }}>{item.hospital}</h3>
+              <p style={{ margin: 0, color: 'var(--text-300)' }}>{item.location}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 
   const renderRequests = () => (
-    <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6' }}>
-      <h3 style={{ margin: '0 0 1.5rem' }}>Blood Donation Requests</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ border: '1px solid #e6e6e6', padding: '1.25rem', borderRadius: '10px', background: '#f7f7f7' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-            <div>
-              <p style={{ margin: '0 0 0.3rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Droplets size={16} /> Urgent: O+ Blood Needed
-              </p>
-              <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.9rem' }}>Central Hospital - 2 units needed</p>
-            </div>
+    <div>
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ margin: '0 0 0.5rem' }}>Donation requests</h2>
+            <p style={{ margin: 0, color: 'var(--text-300)' }}>Review your request activity and status.</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
-            <button style={{ flex: 1, padding: '0.6rem', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>Accept</button>
-            <button style={{ flex: 1, padding: '0.6rem', background: '#fff', color: '#111111', border: '1px solid #e6e6e6', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>Decline</button>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '14px', border: '1px solid var(--glass-border)', background: '#f7f7f7' }}>
+            <Bell size={18} />
+            <span>{requestCount} requests made</span>
           </div>
         </div>
-        <p style={{ color: 'var(--text-300)', textAlign: 'center', padding: '1.5rem 0' }}>No other active requests at the moment.</p>
+
+        <div style={{ display: 'grid', gap: '1rem', marginTop: '1.5rem' }}>
+          {donationRequests.map((request) => (
+            <div key={request.date + request.title} className="dashboard-card" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <p style={{ margin: 0, fontWeight: 600 }}>{request.title}</p>
+                <span style={{ color: request.status === 'Completed' ? '#0b6623' : '#d97706', fontWeight: 700 }}>{request.status}</span>
+              </div>
+              <p style={{ margin: 0, color: 'var(--text-300)' }}>{request.location}</p>
+              <p style={{ margin: '0.75rem 0 0', color: 'var(--text-300)', fontSize: '0.9rem' }}>{new Date(request.date).toLocaleDateString()}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 
   const renderSettings = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6' }}>
-        <h3 style={{ margin: '0 0 1.5rem' }}>Account Settings</h3>
-        <button
-          type="button"
-          onClick={() => setShowChangePassword(!showChangePassword)}
-          style={{ width: '100%', padding: '0.75rem 1rem', background: '#f7f7f7', border: '1px solid #e6e6e6', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 500 }}
-        >
-          <Lock size={18} /> Change Password
-        </button>
-
-        {showChangePassword && (
-          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e6e6e6', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>Current Password</label>
-              <input type="password" placeholder="••••••••" style={{ width: '100%' }} />
+    <div className="card-grid" style={{ gridTemplateColumns: '1.25fr 0.75fr', gap: '1rem' }}>
+      <div className="dashboard-card" style={{ padding: '1.5rem' }}>
+        <h2 style={{ margin: '0 0 1rem' }}>Settings</h2>
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <button type="button" onClick={() => setShowChangePassword((prev) => !prev)} className="btn-secondary" style={{ width: '100%', justifyContent: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Lock size={18} /> Change Password
+          </button>
+          {showChangePassword && (
+            <div style={{ display: 'grid', gap: '1rem', padding: '1rem', borderRadius: '14px', background: '#f7f7f7' }}>
+              <input type="password" placeholder="Current password" />
+              <input type="password" placeholder="New password" />
+              <input type="password" placeholder="Confirm new password" />
+              <button type="button" onClick={handlePasswordChange} className="btn-primary">Update password</button>
             </div>
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>New Password</label>
-              <input type="password" placeholder="••••••••" style={{ width: '100%' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>Confirm New Password</label>
-              <input type="password" placeholder="••••••••" style={{ width: '100%' }} />
-            </div>
-            <button style={{ padding: '0.75rem', background: '#111111', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>Update Password</button>
-          </div>
-        )}
+          )}
+          <button type="button" onClick={() => void logout()} className="btn-secondary">Logout</button>
+        </div>
       </div>
 
-      <div className="glass-panel" style={{ background: '#fff', border: '1px solid #e6e6e6' }}>
-        <h3 style={{ margin: '0 0 1rem' }}>Notification Preferences</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <input type="checkbox" defaultChecked id="phone-notif" />
-            <label htmlFor="phone-notif" style={{ cursor: 'pointer' }}>Receive phone call notifications</label>
+      <div className="dashboard-card" style={{ padding: '1.5rem' }}>
+        <h2 style={{ margin: '0 0 1rem' }}>Quick access</h2>
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <div style={{ background: '#f7f7f7', borderRadius: '14px', padding: '1rem' }}>
+            <p style={{ margin: 0, color: 'var(--text-300)' }}>Status</p>
+            <strong style={{ marginTop: '0.5rem', display: 'block' }}>{profile.status}</strong>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <input type="checkbox" defaultChecked id="sms-notif" />
-            <label htmlFor="sms-notif" style={{ cursor: 'pointer' }}>Receive SMS notifications</label>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <input type="checkbox" id="email-notif" />
-            <label htmlFor="email-notif" style={{ cursor: 'pointer' }}>Receive email notifications</label>
+          <div style={{ background: '#f7f7f7', borderRadius: '14px', padding: '1rem' }}>
+            <p style={{ margin: 0, color: 'var(--text-300)' }}>Preferred contact</p>
+            <strong style={{ marginTop: '0.5rem', display: 'block' }}>{profile.preferredContactMethod}</strong>
           </div>
         </div>
       </div>
@@ -203,62 +300,57 @@ export const DonorDashboard: React.FC = () => {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f3', padding: '2rem 1rem' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-100)', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Header */}
-        <header className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', background: '#fff', border: '1px solid #e6e6e6', marginBottom: '2rem' }}>
+        <header className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#f2f2ef', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Activity size={24} color="#111111" />
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#f2f2ef', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Activity size={26} color="#111111" />
             </div>
             <div>
-              <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.9rem' }}>Donor Dashboard</p>
-              <h1 style={{ margin: '0.2rem 0 0', fontSize: '1.5rem' }}>Welcome, {displayName}</h1>
+              <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.95rem' }}>Donor dashboard</p>
+              <h1 style={{ margin: '0.4rem 0 0', fontSize: '2rem' }}>Hello, {profile.fullName}</h1>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => void logout()}
-            style={{ border: '1px solid #d9d9d9', background: '#fff', color: '#111111', padding: '0.7rem 1rem', borderRadius: '999px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <LogOut size={16} />
-            Logout
+          <button type="button" onClick={() => void logout()} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem' }}>
+            <LogOut size={16} /> Logout
           </button>
         </header>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as DashboardTab)}
-                style={{
-                  padding: '0.75rem 1rem',
-                  borderRadius: '10px',
-                  border: '1px solid #e6e6e6',
-                  background: activeTab === tab.key ? '#111111' : '#fff',
-                  color: activeTab === tab.key ? 'white' : '#111111',
-                  cursor: 'pointer',
-                  fontWeight: 500,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <Icon size={18} />
-                {tab.label}
-              </button>
-            );
-          })}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <p style={{ margin: 0, color: 'var(--text-300)' }}>Dashboard quick actions</p>
+                <h2 style={{ margin: '0.5rem 0 0' }}>What would you like to view?</h2>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <button type="button" onClick={() => setActiveTab('profile')} className="btn-secondary">My Profile</button>
+                <button type="button" onClick={() => setActiveTab('history')} className="btn-secondary">Past Donations</button>
+                <button type="button" onClick={() => setActiveTab('requests')} className="btn-secondary">Requests</button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Content */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="dashboard-card">
+            <p style={{ margin: 0, color: 'var(--text-300)' }}>Total donations</p>
+            <strong style={{ fontSize: '1.75rem' }}>{pastDonations}</strong>
+          </div>
+          <div className="dashboard-card">
+            <p style={{ margin: 0, color: 'var(--text-300)' }}>Requests made</p>
+            <strong style={{ fontSize: '1.75rem' }}>{requestCount}</strong>
+          </div>
+          <div className="dashboard-card">
+            <p style={{ margin: 0, color: 'var(--text-300)' }}>Availability</p>
+            <strong style={{ fontSize: '1.75rem' }}>{availabilityStatus}</strong>
+          </div>
+        </div>
+
+        {renderQuickButtons()}
+
         <div>
-          {activeTab === 'overview' && renderOverview()}
           {activeTab === 'profile' && renderProfile()}
           {activeTab === 'history' && renderHistory()}
           {activeTab === 'requests' && renderRequests()}
