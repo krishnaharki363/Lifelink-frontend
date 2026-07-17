@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
 
-// Match the user shape from the backend
 export interface User {
   id: string;
   email: string;
@@ -10,9 +9,17 @@ export interface User {
   firstName?: string;
   lastName?: string;
   name?: string;
+  username?: string;
   bloodType?: string;
   city?: string;
   state?: string;
+  phone?: string;
+  province?: string;
+  district?: string;
+  municipality?: string;
+  address?: string;
+  availability?: string;
+  status?: string;
 }
 
 interface AuthContextType {
@@ -21,28 +28,26 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, userData: User) => void;
   logout: () => Promise<void>;
+  updateUser: (partial: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser]         = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Rehydrate auth state on app load
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('accessToken');
-    
+    const token      = localStorage.getItem('accessToken');
     if (storedUser && token) {
       try {
         setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse stored user", e);
+      } catch {
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
       }
     }
-    
-    // We are done loading initial state
     setIsLoading(false);
   }, []);
 
@@ -55,8 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout failed on backend', error);
+    } catch {
+      // backend logout failure is non-fatal
     } finally {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
@@ -65,17 +70,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUser = (partial: Partial<User>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...partial };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 };

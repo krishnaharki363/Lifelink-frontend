@@ -1,419 +1,464 @@
-
 import React, { useEffect, useState } from 'react';
-import { Activity, Bell, Droplets, Edit2, History, Lock, LogOut, Settings, User, Heart, Calendar, MapPin, ClipboardCheck, ArrowRight, Check, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import {
+  Droplet, LayoutDashboard, History, Bell, Settings,
+  LogOut, Heart, Calendar, MapPin, Clock, CheckCircle2,
+  AlertCircle, Edit3, Lock, ChevronRight, Award, Zap
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-type DashboardTab = 'profile' | 'history' | 'requests' | 'settings' | 'register-donation';
+type Tab = 'overview' | 'history' | 'requests' | 'schedule' | 'settings';
 
-type DonationRecord = {
-  date: string;
-  hospital: string;
-  location: string;
-  status: string;
-};
+const NAV: { key: Tab; label: string; icon: React.ElementType }[] = [
+  { key: 'overview',  label: 'Overview',        icon: LayoutDashboard },
+  { key: 'history',   label: 'Donation History', icon: History },
+  { key: 'requests',  label: 'Requests',         icon: Bell },
+  { key: 'schedule',  label: 'Schedule Donation',icon: Calendar },
+  { key: 'settings',  label: 'Settings',         icon: Settings },
+];
 
-type RequestRecord = {
-  title: string;
-  location: string;
-  date: string;
-  status: string;
-};
+const HISTORY = [
+  { id: 1, date: '2025-04-10', hospital: 'City Blood Bank',   location: 'Kathmandu', units: 1, status: 'Completed', badge: 'badge-green' },
+  { id: 2, date: '2025-01-22', hospital: 'Red Cross Center',  location: 'Pokhara',   units: 1, status: 'Completed', badge: 'badge-green' },
+  { id: 3, date: '2024-09-05', hospital: 'Patan Hospital',    location: 'Lalitpur',  units: 1, status: 'Completed', badge: 'badge-green' },
+  { id: 4, date: '2024-06-14', hospital: 'Kathmandu General', location: 'Kathmandu', units: 1, status: 'Completed', badge: 'badge-green' },
+];
 
-type DonorProfile = {
-  fullName: string;
-  email: string;
-  phone: string;
-  bloodGroup: string;
-  dateOfBirth: string;
-  province: string;
-  district: string;
-  municipality: string;
-  address: string;
-  status: string;
-  availability: string;
-  preferredContactMethod: string;
-  weight: string;
-  donatedBefore: string;
-  currentlyHealthy: string;
-  onMedication: string;
-  medicalConditions: string;
-};
+const REQUESTS = [
+  { id: 'REQ-042', hospital: 'Kathmandu General', blood: 'O+', urgency: 'Critical', date: '2025-07-17', status: 'Pending',  statusBadge: 'badge-yellow' },
+  { id: 'REQ-031', hospital: 'City Clinic',       blood: 'O+', urgency: 'Urgent',   date: '2025-07-12', status: 'Accepted', statusBadge: 'badge-blue'   },
+  { id: 'REQ-018', hospital: 'Patan Hospital',    blood: 'O+', urgency: 'Normal',   date: '2025-06-28', status: 'Completed',statusBadge: 'badge-green'  },
+];
 
-const PREDEFINED_BRANCHES = [
-  {
-    name: 'Itori Branch',
-    address: 'Kuta expressway, Ogun state',
-    state: 'Ogun',
-    map: 'https://maps.google.com/?q=Kuta+expressway,+Ogun+state'
-  },
-  {
-    name: 'Lagos Island Blood Bank',
-    address: 'Broad Street, Lagos Island',
-    state: 'Lagos',
-    map: 'https://maps.google.com/?q=Broad+Street,+Lagos'
-  },
-  {
-    name: 'Kathmandu Central Blood Bank',
-    address: 'Red Cross Marg, Kalimati, Kathmandu',
-    state: 'Bagmati',
-    map: 'https://maps.google.com/?q=Kalimati,+Kathmandu'
-  },
-  {
-    name: 'Pokhara Regional Donor Unit',
-    address: 'Siddhartha Highway, Pokhara',
-    state: 'Gandaki',
-    map: 'https://maps.google.com/?q=Siddhartha+Highway,+Pokhara'
-  }
+const CENTERS = [
+  { name: 'Kathmandu Central Blood Bank', address: 'Red Cross Marg, Kalimati', city: 'Kathmandu', slots: ['09:00', '11:00', '14:00', '16:00'] },
+  { name: 'Pokhara Regional Donor Unit',  address: 'Siddhartha Highway',       city: 'Pokhara',   slots: ['08:30', '10:30', '13:30'] },
+  { name: 'Patan Hospital Blood Center',  address: 'Lagankhel, Lalitpur',      city: 'Lalitpur',  slots: ['09:00', '12:00', '15:00'] },
 ];
 
 export const DonorDashboard: React.FC = () => {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<DashboardTab>('profile');
-  const [isEditing, setIsEditing] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [availabilityStatus, setAvailabilityStatus] = useState('Available');
-  const [profile, setProfile] = useState<DonorProfile>({
-    fullName: 'Donor',
-    email: '',
-    phone: '',
-    bloodGroup: 'O+',
-    dateOfBirth: '1990-01-01',
-    province: '',
-    district: '',
-    municipality: '',
-    address: '',
-    status: 'Pending Verification',
-    availability: 'Available',
-    preferredContactMethod: 'Phone Call',
-    weight: '',
-    donatedBefore: 'No',
-    currentlyHealthy: 'Yes',
-    onMedication: 'No',
-    medicalConditions: '',
-  });
+  const [tab, setTab]                   = useState<Tab>('overview');
+  const [availability, setAvailability] = useState<'Available' | 'Unavailable'>('Available');
+  const [isEditing, setIsEditing]       = useState(false);
+  const [showPwForm, setShowPwForm]     = useState(false);
+  const [scheduleCenter, setScheduleCenter] = useState(CENTERS[0].name);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleSlot, setScheduleSlot] = useState('');
+  const [scheduleSuccess, setScheduleSuccess] = useState('');
 
-  const [donationHistory, setDonationHistory] = useState<DonationRecord[]>([
-    { date: '2024-06-15', hospital: 'City Blood Bank', location: 'Kathmandu', status: 'Completed' },
-    { date: '2024-03-10', hospital: 'Red Cross Center', location: 'Pokhara', status: 'Completed' },
-  ]);
+  // Profile editable fields
+  const [phone, setPhone]   = useState(user?.phone || '');
+  const [city, setCity]     = useState(user?.city  || '');
+  const [address, setAddress] = useState('');
 
-  const [donationRequests, setDonationRequests] = useState<RequestRecord[]>([
-    { title: 'O+ urgent request', location: 'Central Hospital', date: '2025-06-25', status: 'Pending' },
-    { title: 'A- donation needed', location: 'City Clinic', date: '2025-05-18', status: 'Completed' },
-  ]);
+  const name      = user?.firstName || user?.name || (user?.email?.split('@')[0] ?? 'Donor');
+  const bloodType = user?.bloodType || 'O+';
+  const nextEligible = HISTORY.length
+    ? (() => { const d = new Date(HISTORY[0].date); d.setDate(d.getDate() + 84); return d.toLocaleDateString(); })()
+    : 'Eligible now';
 
-  // States for Blood Donation Registration Form (inspired by image)
-  const [regBranchName, setRegBranchName] = useState('Itori Branch');
-  const [regAddress, setRegAddress] = useState('Kuta expressway, Ogun state');
-  const [regMap, setRegMap] = useState('https://maps.google.com/?q=Kuta+expressway,+Ogun+state');
-  const [regState, setRegState] = useState('Ogun');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regUsername, setRegUsername] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regDate, setRegDate] = useState('');
-  const [regTime, setRegTime] = useState('09:00');
-  const [consentAccepted, setConsentAccepted] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-  
-  // Registration Success details state
-  const [showSuccessCard, setShowSuccessCard] = useState(false);
-  const [lastRegId, setLastRegId] = useState('');
+  useEffect(() => { setPhone(user?.phone || ''); setCity(user?.city || ''); }, [user]);
 
-  useEffect(() => {
-    const displayName = user?.firstName || user?.name || (user?.email ? user.email.split('@')[0] : 'Donor');
-    const uName = user?.username || (user?.email ? user.email.split('@')[0] : 'donor123');
-    setProfile((prev) => ({
-      ...prev,
-      fullName: displayName,
-      email: user?.email ?? prev.email,
-      bloodGroup: user?.bloodType ?? prev.bloodGroup,
-      province: user?.state ?? prev.province,
-      district: user?.city ?? prev.district,
-    }));
+  const selectedCenter = CENTERS.find(c => c.name === scheduleCenter) ?? CENTERS[0];
 
-    // Prefill registration fields
-    setRegEmail(user?.email || '');
-    setRegPhone(user?.phone || '08031234567');
-    setRegUsername(uName);
-    
-    // Set default donation date to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setRegDate(tomorrow.toISOString().split('T')[0]);
-  }, [user]);
-
-  const requestCount = donationRequests.length;
-  const pastDonations = donationHistory.length;
-  const nextEligible = donationHistory.length ? new Date(donationHistory[0].date).toLocaleDateString() : '—';
-
-  const handleProfileSave = () => {
-    setMessage({ type: 'success', text: 'Profile changes saved successfully.' });
-    setIsEditing(false);
+  const handleSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scheduleDate || !scheduleSlot) return;
+    setScheduleSuccess(`Donation scheduled at ${scheduleCenter} on ${scheduleDate} at ${scheduleSlot}.`);
+    setScheduleDate(''); setScheduleSlot('');
   };
-
-  const handleAvailabilityUpdate = (status: string) => {
-    setAvailabilityStatus(status);
-    setProfile((prev) => ({ ...prev, availability: status }));
-    setMessage({ type: 'success', text: `Availability updated to ${status}.` });
-  };
-
-  const handlePasswordChange = () => {
-    setMessage({ type: 'success', text: 'Password update request submitted.' });
-    setShowChangePassword(false);
-  };
-
-  const renderQuickButtons = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-      <button onClick={() => setActiveTab('profile')} type="button" className="dash-action-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <User size={20} />
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.92rem' }}>My Profile</p>
-            <strong style={{ fontSize: '1.1rem' }}>View details</strong>
-          </div>
-        </div>
-      </button>
-      <button onClick={() => setActiveTab('history')} type="button" className="dash-action-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <History size={20} />
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.92rem' }}>Donation History</p>
-            <strong style={{ fontSize: '1.1rem' }}>{pastDonations} past donations</strong>
-          </div>
-        </div>
-      </button>
-      <button onClick={() => setActiveTab('requests')} type="button" className="dash-action-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Bell size={20} />
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.92rem' }}>Donation Requests</p>
-            <strong style={{ fontSize: '1.1rem' }}>{requestCount} requests</strong>
-          </div>
-        </div>
-      </button>
-    </div>
-  );
-
-  const renderProfile = () => (
-    <div>
-      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.95rem' }}>Profile snapshot</p>
-            <h2 style={{ margin: '0.5rem 0 0' }}>Your donor profile</h2>
-          </div>
-          <button type="button" onClick={() => setIsEditing((prev) => !prev)} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Edit2 size={16} /> {isEditing ? 'Save' : 'Edit'}
-          </button>
-        </div>
-
-        <div className="card-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.5rem' }}>
-          <div>
-            <label>Full Name</label>
-            <input type="text" value={profile.fullName} disabled />
-          </div>
-          <div>
-            <label>Email</label>
-            <input type="email" value={profile.email} disabled />
-          </div>
-          <div>
-            <label>Phone</label>
-            <input type="tel" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} disabled={!isEditing} />
-          </div>
-          <div>
-            <label>Blood Group</label>
-            <input type="text" value={profile.bloodGroup} disabled />
-          </div>
-          <div>
-            <label>Location</label>
-            <input type="text" value={`${profile.municipality || ''} ${profile.district ? `, ${profile.district}` : ''}`} disabled />
-          </div>
-          <div>
-            <label>Availability</label>
-            <input type="text" value={profile.availability} disabled />
-          </div>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <label>Address</label>
-            <textarea value={profile.address} disabled={!isEditing} style={{ minHeight: '90px' }} />
-          </div>
-        </div>
-
-        {isEditing && (
-          <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={handleProfileSave} className="btn-primary">Save profile</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderHistory = () => (
-    <div>
-      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <div>
-            <h2 style={{ margin: '0 0 0.5rem' }}>Donation history</h2>
-            <p style={{ margin: 0, color: 'var(--text-300)' }}>Track your blood donations and eligibility.</p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.75rem', width: '100%' }}>
-            <div className="dashboard-card" style={{ padding: '1rem' }}>
-              <p style={{ margin: 0, color: 'var(--text-300)' }}>Donations</p>
-              <strong style={{ display: 'block', marginTop: '0.5rem', fontSize: '1.5rem' }}>{pastDonations}</strong>
-            </div>
-            <div className="dashboard-card" style={{ padding: '1rem' }}>
-              <p style={{ margin: 0, color: 'var(--text-300)' }}>Requests</p>
-              <strong style={{ display: 'block', marginTop: '0.5rem', fontSize: '1.5rem' }}>{requestCount}</strong>
-            </div>
-            <div className="dashboard-card" style={{ padding: '1rem' }}>
-              <p style={{ margin: 0, color: 'var(--text-300)' }}>Next eligible</p>
-              <strong style={{ display: 'block', marginTop: '0.5rem', fontSize: '1.5rem' }}>{nextEligible}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="card-grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
-          {donationHistory.map((item) => (
-            <div key={item.date} className="dashboard-card" style={{ padding: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <p style={{ margin: 0, color: 'var(--text-300)' }}>{new Date(item.date).toLocaleDateString()}</p>
-                <span style={{ color: item.status === 'Completed' ? '#0b6623' : '#b23e3e', fontWeight: 600 }}>{item.status}</span>
-              </div>
-              <h3 style={{ margin: '0 0 0.35rem' }}>{item.hospital}</h3>
-              <p style={{ margin: 0, color: 'var(--text-300)' }}>{item.location}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderRequests = () => (
-    <div>
-      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ margin: '0 0 0.5rem' }}>Donation requests</h2>
-            <p style={{ margin: 0, color: 'var(--text-300)' }}>Review your request activity and status.</p>
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '14px', border: '1px solid var(--glass-border)', background: '#f7f7f7' }}>
-            <Bell size={18} />
-            <span>{requestCount} requests made</span>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gap: '1rem', marginTop: '1.5rem' }}>
-          {donationRequests.map((request) => (
-            <div key={request.date + request.title} className="dashboard-card" style={{ padding: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <p style={{ margin: 0, fontWeight: 600 }}>{request.title}</p>
-                <span style={{ color: request.status === 'Completed' ? '#0b6623' : '#d97706', fontWeight: 700 }}>{request.status}</span>
-              </div>
-              <p style={{ margin: 0, color: 'var(--text-300)' }}>{request.location}</p>
-              <p style={{ margin: '0.75rem 0 0', color: 'var(--text-300)', fontSize: '0.9rem' }}>{new Date(request.date).toLocaleDateString()}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderSettings = () => (
-    <div className="card-grid" style={{ gridTemplateColumns: '1.25fr 0.75fr', gap: '1rem' }}>
-      <div className="dashboard-card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ margin: '0 0 1rem' }}>Settings</h2>
-        <div style={{ display: 'grid', gap: '1rem' }}>
-          <button type="button" onClick={() => setShowChangePassword((prev) => !prev)} className="btn-secondary" style={{ width: '100%', justifyContent: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Lock size={18} /> Change Password
-          </button>
-          {showChangePassword && (
-            <div style={{ display: 'grid', gap: '1rem', padding: '1rem', borderRadius: '14px', background: '#f7f7f7' }}>
-              <input type="password" placeholder="Current password" />
-              <input type="password" placeholder="New password" />
-              <input type="password" placeholder="Confirm new password" />
-              <button type="button" onClick={handlePasswordChange} className="btn-primary">Update password</button>
-            </div>
-          )}
-          <button type="button" onClick={() => void logout()} className="btn-secondary">Logout</button>
-        </div>
-      </div>
-
-      <div className="dashboard-card" style={{ padding: '1.5rem' }}>
-        <h2 style={{ margin: '0 0 1rem' }}>Quick access</h2>
-        <div style={{ display: 'grid', gap: '1rem' }}>
-          <div style={{ background: '#f7f7f7', borderRadius: '14px', padding: '1rem' }}>
-            <p style={{ margin: 0, color: 'var(--text-300)' }}>Status</p>
-            <strong style={{ marginTop: '0.5rem', display: 'block' }}>{profile.status}</strong>
-          </div>
-          <div style={{ background: '#f7f7f7', borderRadius: '14px', padding: '1rem' }}>
-            <p style={{ margin: 0, color: 'var(--text-300)' }}>Preferred contact</p>
-            <strong style={{ marginTop: '0.5rem', display: 'block' }}>{profile.preferredContactMethod}</strong>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-100)', padding: '2rem 1rem' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <header className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#f2f2ef', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Activity size={26} color="#111111" />
+    <div className="dash-layout">
+      {/* ── Sidebar ── */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--red-600)', display: 'grid', placeItems: 'center' }}>
+            <Droplet size={18} color="#fff" />
+          </div>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.15rem', color: 'var(--gray-900)' }}>
+            Life<span style={{ color: 'var(--red-600)' }}>Link</span>
+          </span>
+        </div>
+
+        {/* donor card */}
+        <div style={{ background: 'linear-gradient(135deg, var(--red-600), var(--red-800))', borderRadius: 'var(--radius-lg)', padding: '1rem', margin: '0 0 1rem', color: '#fff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.85rem' }}>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: '1rem', fontFamily: 'var(--font-display)' }}>
+              {name.charAt(0)}
             </div>
             <div>
-              <p style={{ margin: 0, color: 'var(--text-300)', fontSize: '0.95rem' }}>Donor dashboard</p>
-              <h1 style={{ margin: '0.4rem 0 0', fontSize: '2rem' }}>Hello, {profile.fullName}</h1>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: '0.88rem' }}>{name}</p>
+              <p style={{ margin: 0, fontSize: '0.72rem', opacity: 0.7 }}>Verified Donor</p>
             </div>
           </div>
-          <button type="button" onClick={() => void logout()} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem' }}>
-            <LogOut size={16} /> Logout
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', opacity: 0.75 }}>Blood type</span>
+            <span style={{ fontWeight: 900, fontSize: '1rem', fontFamily: 'var(--font-display)' }}>{bloodType}</span>
+          </div>
+        </div>
+
+        <p className="nav-section-title">Donor Portal</p>
+        {NAV.map(({ key, label, icon: Icon }) => (
+          <button key={key} className={`nav-item ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>
+            <Icon size={17} /> {label}
           </button>
-        </header>
+        ))}
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <p style={{ margin: 0, color: 'var(--text-300)' }}>Dashboard quick actions</p>
-                <h2 style={{ margin: '0.5rem 0 0' }}>What would you like to view?</h2>
+        <div style={{ flex: 1 }} />
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+          <button className="nav-item" onClick={() => void logout()} style={{ color: 'var(--error)' }}>
+            <LogOut size={16} /> Sign out
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main ── */}
+      <main className="dash-main">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
+          <div>
+            <h1 className="page-title">{NAV.find(n => n.key === tab)?.label}</h1>
+            <p className="page-subtitle">Hello, {name} · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              onClick={() => setAvailability(a => a === 'Available' ? 'Unavailable' : 'Available')}
+              className={`badge ${availability === 'Available' ? 'badge-green' : 'badge-gray'}`}
+              style={{ cursor: 'pointer', padding: '0.4rem 0.85rem', fontSize: '0.8rem' }}
+            >
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: availability === 'Available' ? 'var(--success)' : 'var(--gray-400)', display: 'inline-block', marginRight: 4 }} />
+              {availability}
+            </button>
+          </div>
+        </div>
+
+        {/* ── OVERVIEW ── */}
+        {tab === 'overview' && (
+          <div className="animate-fade-up">
+            <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
+              {[
+                { label: 'Total Donations', value: HISTORY.length, icon: Heart,        color: 'var(--red-600)', bg: 'var(--red-50)' },
+                { label: 'Lives Saved',     value: HISTORY.length * 3, icon: Award,    color: 'var(--success)', bg: 'var(--success-bg)' },
+                { label: 'Open Requests',   value: REQUESTS.filter(r => r.status === 'Pending').length, icon: Bell, color: 'var(--warning)', bg: 'var(--warning-bg)' },
+                { label: 'Next Eligible',   value: nextEligible,   icon: Calendar,     color: 'var(--info)',    bg: 'var(--info-bg)', small: true },
+              ].map(c => {
+                const Icon = c.icon;
+                return (
+                  <div key={c.label} className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.85rem' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: c.bg, display: 'grid', placeItems: 'center' }}>
+                        <Icon size={18} color={c.color} />
+                      </div>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--gray-500)', fontWeight: 600 }}>{c.label}</span>
+                    </div>
+                    <p style={{ fontSize: (c as { small?: boolean }).small ? '1.1rem' : '2rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--gray-900)', margin: 0, lineHeight: 1.1 }}>
+                      {String(c.value)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Donation badge / impact card */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+              <div className="card">
+                <h3 style={{ marginBottom: '1.25rem' }}>Recent Donations</h3>
+                {HISTORY.slice(0, 3).map((h, i) => (
+                  <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 0', borderBottom: i < 2 ? '1px solid var(--gray-100)' : 'none' }}>
+                    <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--red-50)', display: 'grid', placeItems: 'center' }}>
+                      <Droplet size={18} color="var(--red-600)" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{h.hospital}</p>
+                      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-400)' }}>{h.location} · {new Date(h.date).toLocaleDateString()}</p>
+                    </div>
+                    <span className={`badge ${h.badge}`}>{h.status}</span>
+                  </div>
+                ))}
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: '0.75rem', color: 'var(--red-600)' }} onClick={() => setTab('history')}>
+                  View full history <ChevronRight size={14} />
+                </button>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <button type="button" onClick={() => setActiveTab('profile')} className="btn-secondary">My Profile</button>
-                <button type="button" onClick={() => setActiveTab('history')} className="btn-secondary">Past Donations</button>
-                <button type="button" onClick={() => setActiveTab('requests')} className="btn-secondary">Requests</button>
+
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h3 style={{ margin: 0 }}>Your Impact</h3>
+                {[
+                  { label: 'Units donated', val: `${HISTORY.length} units` },
+                  { label: 'Estimated lives saved', val: `${HISTORY.length * 3} people` },
+                  { label: 'Donation streak', val: '4 donations' },
+                  { label: 'Donor since', val: '2024' },
+                ].map(m => (
+                  <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--gray-100)' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>{m.label}</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--gray-900)' }}>{m.val}</span>
+                  </div>
+                ))}
+                <button className="btn btn-primary btn-sm" style={{ marginTop: 'auto', justifyContent: 'center' }} onClick={() => setTab('schedule')}>
+                  <Calendar size={14} /> Schedule Donation
+                </button>
+              </div>
+            </div>
+
+            {/* Active requests preview */}
+            {REQUESTS.filter(r => r.status === 'Pending').length > 0 && (
+              <div className="card" style={{ borderLeft: '4px solid var(--red-500)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <AlertCircle size={18} color="var(--red-600)" />
+                  <h3 style={{ margin: 0, color: 'var(--red-700)' }}>You have pending donation requests</h3>
+                </div>
+                {REQUESTS.filter(r => r.status === 'Pending').map(r => (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--red-50)', borderRadius: 'var(--radius-md)', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span className="blood-pill">{r.blood}</span>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{r.hospital}</p>
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-500)' }}>{r.urgency} · {r.date}</p>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button className="btn btn-primary btn-sm">Accept</button>
+                      <button className="btn btn-secondary btn-sm">Decline</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── HISTORY ── */}
+        {tab === 'history' && (
+          <div className="animate-fade-up">
+            <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
+              {[
+                { label: 'Total Donations', value: HISTORY.length, color: 'var(--red-600)' },
+                { label: 'Units Donated',   value: HISTORY.length, color: 'var(--info)' },
+                { label: 'Lives Helped',    value: HISTORY.length * 3, color: 'var(--success)' },
+              ].map(s => (
+                <div key={s.label} className="stat-card" style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: '2.2rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: s.color, margin: '0 0 0.3rem' }}>{s.value}</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--gray-500)' }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{ padding: 0 }}>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Date</th><th>Center / Hospital</th><th>Location</th><th>Units</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {HISTORY.map(h => (
+                      <tr key={h.id}>
+                        <td style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>{new Date(h.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                        <td style={{ fontWeight: 600 }}>{h.hospital}</td>
+                        <td style={{ color: 'var(--gray-500)' }}><span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}><MapPin size={13} />{h.location}</span></td>
+                        <td style={{ fontWeight: 700 }}>{h.units}</td>
+                        <td><span className={`badge ${h.badge}`}><CheckCircle2 size={11} />{h.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div className="dashboard-card">
-            <p style={{ margin: 0, color: 'var(--text-300)' }}>Total donations</p>
-            <strong style={{ fontSize: '1.75rem' }}>{pastDonations}</strong>
+        {/* ── REQUESTS ── */}
+        {tab === 'requests' && (
+          <div className="animate-fade-up">
+            <p style={{ color: 'var(--gray-500)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+              Hospitals near you that need your blood type (<strong>{bloodType}</strong>).
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {REQUESTS.map(r => (
+                <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <span className="blood-pill blood-pill-lg">{r.blood}</span>
+                    <div>
+                      <p style={{ margin: '0 0 0.25rem', fontWeight: 700, fontSize: '0.95rem' }}>{r.hospital}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <span className={`badge ${r.urgency === 'Critical' ? 'badge-red' : r.urgency === 'Urgent' ? 'badge-yellow' : 'badge-gray'}`}>{r.urgency}</span>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={12} />{r.date}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--gray-400)' }}>{r.id}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span className={`badge ${r.statusBadge}`}>{r.status}</span>
+                    {r.status === 'Pending' && (
+                      <>
+                        <button className="btn btn-primary btn-sm">Accept</button>
+                        <button className="btn btn-secondary btn-sm">Decline</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="dashboard-card">
-            <p style={{ margin: 0, color: 'var(--text-300)' }}>Requests made</p>
-            <strong style={{ fontSize: '1.75rem' }}>{requestCount}</strong>
-          </div>
-          <div className="dashboard-card">
-            <p style={{ margin: 0, color: 'var(--text-300)' }}>Availability</p>
-            <strong style={{ fontSize: '1.75rem' }}>{availabilityStatus}</strong>
-          </div>
-        </div>
+        )}
 
-        {renderQuickButtons()}
+        {/* ── SCHEDULE ── */}
+        {tab === 'schedule' && (
+          <div className="animate-fade-up" style={{ maxWidth: 640 }}>
+            <div className="card" style={{ marginBottom: '1.25rem', background: 'linear-gradient(135deg, var(--red-50), #fff)', borderColor: 'var(--red-200)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Zap size={20} color="var(--red-600)" />
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, color: 'var(--red-700)' }}>You are eligible to donate!</p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--gray-500)' }}>Next eligible date: {nextEligible}</p>
+                </div>
+              </div>
+            </div>
 
-        <div>
-          {activeTab === 'profile' && renderProfile()}
-          {activeTab === 'history' && renderHistory()}
-          {activeTab === 'requests' && renderRequests()}
-          {activeTab === 'settings' && renderSettings()}
-        </div>
-      </div>
+            {scheduleSuccess && (
+              <div className="alert alert-success" style={{ marginBottom: '1.25rem' }}>
+                <CheckCircle2 size={16} style={{ flexShrink: 0 }} /><span>{scheduleSuccess}</span>
+              </div>
+            )}
+
+            <form className="card" onSubmit={handleSchedule}>
+              <h3 style={{ marginBottom: '1.5rem' }}>Book a Donation Appointment</h3>
+              <div style={{ display: 'grid', gap: '1.25rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Select Donation Center</label>
+                  {CENTERS.map(c => (
+                    <div key={c.name} onClick={() => { setScheduleCenter(c.name); setScheduleSlot(''); }} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '0.9rem 1rem', marginBottom: '0.5rem',
+                      border: `2px solid ${scheduleCenter === c.name ? 'var(--red-500)' : 'var(--border)'}`,
+                      borderRadius: 'var(--radius-md)',
+                      background: scheduleCenter === c.name ? 'var(--red-50)' : '#fff',
+                      cursor: 'pointer', transition: 'all var(--t-fast)',
+                    }}>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: scheduleCenter === c.name ? 'var(--red-700)' : 'var(--gray-800)' }}>{c.name}</p>
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-400)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={11} />{c.address}, {c.city}</p>
+                      </div>
+                      {scheduleCenter === c.name && <CheckCircle2 size={18} color="var(--red-600)" />}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Preferred Date</label>
+                  <input className="form-input" type="date" value={scheduleDate} min={new Date().toISOString().split('T')[0]}
+                    onChange={e => { setScheduleDate(e.target.value); setScheduleSlot(''); }} required />
+                </div>
+
+                {scheduleDate && (
+                  <div className="form-group">
+                    <label className="form-label">Available Time Slots</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      {selectedCenter.slots.map(slot => (
+                        <button key={slot} type="button" onClick={() => setScheduleSlot(slot)} style={{
+                          padding: '0.5rem 1rem', borderRadius: 'var(--radius-full)',
+                          border: `2px solid ${scheduleSlot === slot ? 'var(--red-500)' : 'var(--border)'}`,
+                          background: scheduleSlot === slot ? 'var(--red-600)' : '#fff',
+                          color: scheduleSlot === slot ? '#fff' : 'var(--gray-700)',
+                          fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer',
+                          transition: 'all var(--t-fast)',
+                        }}>{slot}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button type="submit" className="btn btn-primary" disabled={!scheduleDate || !scheduleSlot} style={{ justifyContent: 'center', padding: '0.85rem' }}>
+                  <Calendar size={16} /> Confirm Appointment
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ── SETTINGS ── */}
+        {tab === 'settings' && (
+          <div className="animate-fade-up" style={{ maxWidth: 640 }}>
+            {/* Profile edit */}
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ margin: 0 }}>Profile Information</h3>
+                <button className="btn btn-secondary btn-sm" onClick={() => setIsEditing(e => !e)}>
+                  <Edit3 size={14} /> {isEditing ? 'Cancel' : 'Edit'}
+                </button>
+              </div>
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Full Name</label>
+                    <input className="form-input" value={name} disabled />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Blood Type</label>
+                    <input className="form-input" value={bloodType} disabled />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Email</label>
+                  <input className="form-input" value={user?.email || ''} disabled />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Phone</label>
+                    <input className="form-input" value={phone} onChange={e => setPhone(e.target.value)} disabled={!isEditing} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">City</label>
+                    <input className="form-input" value={city} onChange={e => setCity(e.target.value)} disabled={!isEditing} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Address</label>
+                  <textarea className="form-textarea" value={address} onChange={e => setAddress(e.target.value)} disabled={!isEditing} style={{ minHeight: 72 }} />
+                </div>
+                {isEditing && (
+                  <button className="btn btn-primary btn-sm" onClick={() => setIsEditing(false)} style={{ justifyContent: 'center' }}>
+                    Save Changes
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Availability toggle */}
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ marginBottom: '1rem' }}>Availability</h3>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                {(['Available', 'Unavailable'] as const).map(s => (
+                  <button key={s} type="button" onClick={() => setAvailability(s)} style={{
+                    flex: 1, padding: '0.75rem',
+                    border: `2px solid ${availability === s ? (s === 'Available' ? 'var(--success)' : 'var(--gray-400)') : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-md)',
+                    background: availability === s ? (s === 'Available' ? 'var(--success-bg)' : 'var(--gray-100)') : '#fff',
+                    color: availability === s ? (s === 'Available' ? 'var(--success)' : 'var(--gray-600)') : 'var(--gray-500)',
+                    fontWeight: 600, cursor: 'pointer', transition: 'all var(--t-fast)',
+                  }}>{s}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Change password */}
+            <div className="card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showPwForm ? '1.25rem' : 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Lock size={18} color="var(--gray-500)" />
+                  <h3 style={{ margin: 0 }}>Change Password</h3>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowPwForm(p => !p)}>
+                  {showPwForm ? 'Cancel' : 'Change'}
+                </button>
+              </div>
+              {showPwForm && (
+                <div style={{ display: 'grid', gap: '0.85rem' }}>
+                  <input className="form-input" type="password" placeholder="Current password" />
+                  <input className="form-input" type="password" placeholder="New password" />
+                  <input className="form-input" type="password" placeholder="Confirm new password" />
+                  <button className="btn btn-primary btn-sm" style={{ justifyContent: 'center' }}>Update Password</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };
