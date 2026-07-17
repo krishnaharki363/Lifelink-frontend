@@ -66,7 +66,7 @@ const HOW_IT_WORKS = [
 const TESTIMONIALS = [
   { name: 'Krishna Prasad Naharki',  role: 'Chief Executive Officer, Samjhana Medicall Hall', text: 'LifeLink cut our blood sourcing time from 6 hours to under 45 minutes. It\'s genuinely life-saving technology.', rating: 5 },
   { name: 'Krisha Naharki',       role: 'Blood Donor since 2022',              text: 'I\'ve donated 7 times through LifeLink. The app makes scheduling effortless and I can see exactly who I\'ve helped.', rating: 5 },
-  { name: 'Sushma Adhikari',   role: 'Hospital Admin, City Clinic',         text: 'Managing our blood inventory used to be a nightmare. LifeLink gives us complete visibility and control.', rating: 5 },
+  { name: 'Samrat Karki',   role: 'Hospital Admin, City Clinic',         text: 'Managing our blood inventory used to be a nightmare. LifeLink gives us complete visibility and control.', rating: 5 },
 ];
 
 export const Landing: React.FC = () => {
@@ -358,14 +358,38 @@ export const Landing: React.FC = () => {
             </div>
             <div>
               <p style={{ color: '#fff', fontWeight: 700, marginBottom: '1rem', fontSize: '0.9rem' }}>Platform</p>
-              {['Donor Registration','Hospital Portal','Admin Dashboard','Blood Inventory'].map(l => (
-                <p key={l} style={{ marginBottom: '0.6rem', fontSize: '0.875rem' }}>{l}</p>
+              {[
+                { label: 'Donor Registration', to: '/register' },
+                { label: 'Hospital Portal',    to: '/login' },
+                { label: 'Admin Dashboard',    to: '/login' },
+                { label: 'Blood Inventory',    to: '/login' },
+              ].map(l => (
+                <Link key={l.label} to={l.to} style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', transition: 'color var(--t-fast)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
+                  {l.label}
+                </Link>
               ))}
             </div>
             <div>
               <p style={{ color: '#fff', fontWeight: 700, marginBottom: '1rem', fontSize: '0.9rem' }}>Resources</p>
-              {['Eligibility Guide','Donation FAQ','Blood Types 101','Contact Us'].map(l => (
-                <p key={l} style={{ marginBottom: '0.6rem', fontSize: '0.875rem' }}>{l}</p>
+              {[
+                { label: 'Eligibility Guide', to: '/register' },
+                { label: 'Donation FAQ',      to: '/register' },
+                { label: 'Blood Types 101',   to: '/#blood-types' },
+                { label: 'Contact Us',        href: 'mailto:support@lifelink.np' },
+              ].map(l => (
+                l.href
+                  ? <a key={l.label} href={l.href} style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', transition: 'color var(--t-fast)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
+                      {l.label}
+                    </a>
+                  : <Link key={l.label} to={l.to!} style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', transition: 'color var(--t-fast)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
+                      {l.label}
+                    </Link>
               ))}
             </div>
           </div>
