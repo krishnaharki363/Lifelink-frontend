@@ -64,8 +64,8 @@ const HOW_IT_WORKS = [
 ];
 
 const TESTIMONIALS = [
-  { name: 'Dr. Priya Sharma',  role: 'Head of Surgery, Kathmandu General', text: 'LifeLink cut our blood sourcing time from 6 hours to under 45 minutes. It\'s genuinely life-saving technology.', rating: 5 },
-  { name: 'Rajan Thapa',       role: 'Blood Donor since 2022',              text: 'I\'ve donated 7 times through LifeLink. The app makes scheduling effortless and I can see exactly who I\'ve helped.', rating: 5 },
+  { name: 'Krishna Prasad Naharki',  role: 'Chief Executive Officer, Samjhana Medicall Hall', text: 'LifeLink cut our blood sourcing time from 6 hours to under 45 minutes. It\'s genuinely life-saving technology.', rating: 5 },
+  { name: 'Krisha Naharki',       role: 'Blood Donor since 2022',              text: 'I\'ve donated 7 times through LifeLink. The app makes scheduling effortless and I can see exactly who I\'ve helped.', rating: 5 },
   { name: 'Sushma Adhikari',   role: 'Hospital Admin, City Clinic',         text: 'Managing our blood inventory used to be a nightmare. LifeLink gives us complete visibility and control.', rating: 5 },
 ];
 
@@ -351,7 +351,7 @@ export const Landing: React.FC = () => {
               </div>
               <p style={{ fontSize: '0.9rem', lineHeight: 1.8, maxWidth: '280px' }}>Connecting blood donors with hospitals to save lives across Nepal and beyond.</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem', fontSize: '0.875rem' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14} /> +977-1-4XXXXXX</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14} /> +977-9744258908</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Mail size={14} /> support@lifelink.np</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MapPin size={14} /> Kathmandu, Nepal</span>
               </div>
