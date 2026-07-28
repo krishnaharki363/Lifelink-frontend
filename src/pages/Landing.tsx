@@ -74,6 +74,38 @@ export const Landing: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: '#fff' }}>
+      <style>{`
+        .stats-col {
+          text-align: center;
+          padding: 1.5rem 1rem;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        @media (min-width: 901px) {
+          .stats-col {
+            border-bottom: none;
+            border-right: 1px solid rgba(255,255,255,0.1);
+          }
+          .stats-col:last-child {
+            border-right: none;
+          }
+        }
+        @media (max-width: 900px) and (min-width: 641px) {
+          .stats-col:nth-child(2n) {
+            border-right: none;
+          }
+          .stats-col:nth-child(odd) {
+            border-right: 1px solid rgba(255,255,255,0.1);
+          }
+          .stats-col:nth-child(3), .stats-col:nth-child(4) {
+            border-bottom: none;
+          }
+        }
+        @media (max-width: 640px) {
+          .stats-col:last-child {
+            border-bottom: none;
+          }
+        }
+      `}</style>
 
       {/* ── Nav ─────────────────────────────────────────────────────── */}
       <nav style={{
@@ -133,9 +165,6 @@ export const Landing: React.FC = () => {
             <Link to="/register" className="btn btn-primary btn-xl" style={{ gap: '0.6rem' }}>
               Register as Donor <ArrowRight size={18} />
             </Link>
-            <Link to="/login" className="btn btn-secondary btn-xl">
-              Hospital / Admin Login
-            </Link>
           </div>
         </div>
       </section>
@@ -143,13 +172,10 @@ export const Landing: React.FC = () => {
       {/* ── Stats bar ───────────────────────────────────────────────── */}
       <section style={{ background: 'var(--gray-900)', padding: '2.5rem 1.5rem' }}>
         <div className="container grid-4" style={{ gap: '0' }}>
-          {STATS.map((s, i) => {
+          {STATS.map((s) => {
             const Icon = s.icon;
             return (
-              <div key={s.label} style={{
-                textAlign: 'center', padding: '1rem',
-                borderRight: i < STATS.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-              }}>
+              <div key={s.label} className="stats-col">
                 <Icon size={22} color={s.color} style={{ margin: '0 auto 0.6rem' }} />
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: '#fff', lineHeight: 1 }}>{s.value}</div>
                 <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.55)', marginTop: '0.4rem' }}>{s.label}</div>
