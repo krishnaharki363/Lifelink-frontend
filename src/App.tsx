@@ -6,6 +6,7 @@ import { Login } from './pages/Login';
 import { DonorRegistration } from './pages/DonorRegistration';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { HospitalDashboard } from './pages/HospitalDashboard';
+import { BloodBankDashboard } from './pages/BloodBankDashboard';
 import { DonorDashboard } from './pages/DonorDashboard';
 
 const ProtectedRoute = ({
@@ -55,7 +56,7 @@ const App = () => {
         {/* Protected — role-gated */}
         <Route path="/admin"    element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/hospital" element={<ProtectedRoute allowedRoles={['HOSPITAL']}><HospitalDashboard /></ProtectedRoute>} />
-        <Route path="/Blodd_Bank" element={<ProtectedRoute allowedRoles={['BLOOD_BANK']}><HospitalDashboard /></ProtectedRoute>} />
+        <Route path="/Blodd_Bank" element={<ProtectedRoute allowedRoles={['BLOOD_BANK']}><BloodBankDashboard /></ProtectedRoute>} />
         <Route path="/donor"    element={<ProtectedRoute allowedRoles={['DONOR']}><DonorDashboard /></ProtectedRoute>} />
 
         {/* Catch-all */}
