@@ -16,18 +16,7 @@ const NAV: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'settings',  label: 'Settings',         icon: Settings },
 ];
 
-const HISTORY = [
-  { id: 1, date: '2025-04-10', hospital: 'City Blood Bank',   location: 'Kathmandu', units: 1, status: 'Completed', badge: 'badge-green' },
-  { id: 2, date: '2025-01-22', hospital: 'Red Cross Center',  location: 'Pokhara',   units: 1, status: 'Completed', badge: 'badge-green' },
-  { id: 3, date: '2024-09-05', hospital: 'Patan Hospital',    location: 'Lalitpur',  units: 1, status: 'Completed', badge: 'badge-green' },
-  { id: 4, date: '2024-06-14', hospital: 'Kathmandu General', location: 'Kathmandu', units: 1, status: 'Completed', badge: 'badge-green' },
-];
 
-const REQUESTS = [
-  { id: 'REQ-042', hospital: 'Kathmandu General', blood: 'O+', urgency: 'Critical', date: '2025-07-17', status: 'Pending',  statusBadge: 'badge-yellow' },
-  { id: 'REQ-031', hospital: 'City Clinic',       blood: 'O+', urgency: 'Urgent',   date: '2025-07-12', status: 'Accepted', statusBadge: 'badge-blue'   },
-  { id: 'REQ-018', hospital: 'Patan Hospital',    blood: 'O+', urgency: 'Normal',   date: '2025-06-28', status: 'Completed',statusBadge: 'badge-green'  },
-];
 
 const CENTERS = [
   { name: 'Kathmandu Central Blood Bank', address: 'Red Cross Marg, Kalimati', city: 'Kathmandu', slots: ['09:00', '11:00', '14:00', '16:00'] },
@@ -53,11 +42,88 @@ export const DonorDashboard: React.FC = () => {
 
   const name      = user?.firstName || user?.name || (user?.email?.split('@')[0] ?? 'Donor');
   const bloodType = user?.bloodType || 'O+';
-  const nextEligible = HISTORY.length
-    ? (() => { const d = new Date(HISTORY[0].date); d.setDate(d.getDate() + 84); return d.toLocaleDateString(); })()
+
+  // Dynamic state for donation history (empty by default for new users)
+  const [history, setHistory] = useState<any[]>(() => {
+    const saved = localStorage.getItem('donor_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Dynamic state for donation requests
+  const [requests, setRequests] = useState<any[]>(() => {
+    const saved = localStorage.getItem('donor_requests');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Next eligible date calculation
+  const nextEligible = history.length
+    ? (() => { const d = new Date(history[0].date); d.setDate(d.getDate() + 84); return d.toLocaleDateString(); })()
     : 'Eligible now';
 
-  useEffect(() => { setPhone(user?.phone || ''); setCity(user?.city || ''); }, [user]);
+  // Sync profile fields when user loads
+  useEffect(() => { 
+    setPhone(user?.phone || ''); 
+    setCity(user?.city || ''); 
+  }, [user]);
+
+  // Sync history state to localStorage
+  useEffect(() => {
+    localStorage.setItem('donor_history', JSON.stringify(history));
+  }, [history]);
+
+  // Sync requests state to localStorage
+  useEffect(() => {
+    if (requests.length > 0) {
+      localStorage.setItem('donor_requests', JSON.stringify(requests));
+    }
+  }, [requests]);
+
+  // Initialize requests using logged-in user's bloodType if none are saved
+  useEffect(() => {
+    const saved = localStorage.getItem('donor_requests');
+    if (!saved || JSON.parse(saved).length === 0) {
+      const bt = user?.bloodType || 'A+';
+      const initial = [
+        { id: 'REQ-042', hospital: 'Kathmandu General', blood: bt, urgency: 'Critical', date: '2025-07-17', status: 'Pending',  statusBadge: 'badge-yellow' },
+        { id: 'REQ-031', hospital: 'City Clinic',       blood: bt, urgency: 'Urgent',   date: '2025-07-12', status: 'Pending',  statusBadge: 'badge-yellow' },
+        { id: 'REQ-018', hospital: 'Patan Hospital',    blood: bt, urgency: 'Normal',   date: '2025-06-28', status: 'Pending',  statusBadge: 'badge-yellow' },
+      ];
+      setRequests(initial);
+      localStorage.setItem('donor_requests', JSON.stringify(initial));
+    }
+  }, [user]);
+
+  const handleAcceptRequest = (requestId: string) => {
+    setRequests(prev => prev.map(r => {
+      if (r.id === requestId) {
+        return { ...r, status: 'Completed', statusBadge: 'badge-green' };
+      }
+      return r;
+    }));
+
+    const request = requests.find(r => r.id === requestId);
+    if (request) {
+      const newDonation = {
+        id: request.id,
+        date: new Date().toISOString().split('T')[0],
+        hospital: request.hospital,
+        location: 'Kathmandu',
+        units: 1,
+        status: 'Completed',
+        badge: 'badge-green'
+      };
+      setHistory(prev => [newDonation, ...prev]);
+    }
+  };
+
+  const handleDeclineRequest = (requestId: string) => {
+    setRequests(prev => prev.map(r => {
+      if (r.id === requestId) {
+        return { ...r, status: 'Declined', statusBadge: 'badge-gray' };
+      }
+      return r;
+    }));
+  };
 
   const selectedCenter = CENTERS.find(c => c.name === scheduleCenter) ?? CENTERS[0];
 
@@ -137,9 +203,9 @@ export const DonorDashboard: React.FC = () => {
           <div className="animate-fade-up">
             <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
               {[
-                { label: 'Total Donations', value: HISTORY.length, icon: Heart,        color: 'var(--red-600)', bg: 'var(--red-50)' },
-                { label: 'Lives Saved',     value: HISTORY.length * 3, icon: Award,    color: 'var(--success)', bg: 'var(--success-bg)' },
-                { label: 'Open Requests',   value: REQUESTS.filter(r => r.status === 'Pending').length, icon: Bell, color: 'var(--warning)', bg: 'var(--warning-bg)' },
+                { label: 'Total Donations', value: history.length, icon: Heart,        color: 'var(--red-600)', bg: 'var(--red-50)' },
+                { label: 'Lives Saved',     value: history.length * 3, icon: Award,    color: 'var(--success)', bg: 'var(--success-bg)' },
+                { label: 'Open Requests',   value: requests.filter(r => r.status === 'Pending').length, icon: Bell, color: 'var(--warning)', bg: 'var(--warning-bg)' },
                 { label: 'Next Eligible',   value: nextEligible,   icon: Calendar,     color: 'var(--info)',    bg: 'var(--info-bg)', small: true },
               ].map(c => {
                 const Icon = c.icon;
@@ -163,18 +229,26 @@ export const DonorDashboard: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
               <div className="card">
                 <h3 style={{ marginBottom: '1.25rem' }}>Recent Donations</h3>
-                {HISTORY.slice(0, 3).map((h, i) => (
-                  <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 0', borderBottom: i < 2 ? '1px solid var(--gray-100)' : 'none' }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--red-50)', display: 'grid', placeItems: 'center' }}>
-                      <Droplet size={18} color="var(--red-600)" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{h.hospital}</p>
-                      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-400)' }}>{h.location} · {new Date(h.date).toLocaleDateString()}</p>
-                    </div>
-                    <span className={`badge ${h.badge}`}>{h.status}</span>
+                {history.length === 0 ? (
+                  <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--gray-400)' }}>
+                    <Heart size={32} style={{ marginBottom: '0.5rem', opacity: 0.5, display: 'inline-block' }} />
+                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No donations recorded yet.</p>
+                    <p style={{ margin: 0, fontSize: '0.78rem', opacity: 0.7 }}>Accept a request to register your first donation!</p>
                   </div>
-                ))}
+                ) : (
+                  history.slice(0, 3).map((h, i) => (
+                    <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 0', borderBottom: i < history.slice(0, 3).length - 1 ? '1px solid var(--gray-100)' : 'none' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--red-50)', display: 'grid', placeItems: 'center' }}>
+                        <Droplet size={18} color="var(--red-600)" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{h.hospital}</p>
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-400)' }}>{h.location} · {new Date(h.date).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`badge ${h.badge}`}>{h.status}</span>
+                    </div>
+                  ))
+                )}
                 <button className="btn btn-ghost btn-sm" style={{ marginTop: '0.75rem', color: 'var(--red-600)' }} onClick={() => setTab('history')}>
                   View full history <ChevronRight size={14} />
                 </button>
@@ -183,10 +257,10 @@ export const DonorDashboard: React.FC = () => {
               <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <h3 style={{ margin: 0 }}>Your Impact</h3>
                 {[
-                  { label: 'Units donated', val: `${HISTORY.length} units` },
-                  { label: 'Estimated lives saved', val: `${HISTORY.length * 3} people` },
-                  { label: 'Donation streak', val: '4 donations' },
-                  { label: 'Donor since', val: '2024' },
+                  { label: 'Units donated', val: `${history.length} units` },
+                  { label: 'Estimated lives saved', val: `${history.length * 3} people` },
+                  { label: 'Donation streak', val: `${history.length} donations` },
+                  { label: 'Donor since', val: '2026' },
                 ].map(m => (
                   <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--gray-100)' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>{m.label}</span>
@@ -200,13 +274,13 @@ export const DonorDashboard: React.FC = () => {
             </div>
 
             {/* Active requests preview */}
-            {REQUESTS.filter(r => r.status === 'Pending').length > 0 && (
+            {requests.filter(r => r.status === 'Pending').length > 0 && (
               <div className="card" style={{ borderLeft: '4px solid var(--red-500)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                   <AlertCircle size={18} color="var(--red-600)" />
                   <h3 style={{ margin: 0, color: 'var(--red-700)' }}>You have pending donation requests</h3>
                 </div>
-                {REQUESTS.filter(r => r.status === 'Pending').map(r => (
+                {requests.filter(r => r.status === 'Pending').map(r => (
                   <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--red-50)', borderRadius: 'var(--radius-md)', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <span className="blood-pill">{r.blood}</span>
@@ -216,8 +290,8 @@ export const DonorDashboard: React.FC = () => {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button className="btn btn-primary btn-sm">Accept</button>
-                      <button className="btn btn-secondary btn-sm">Decline</button>
+                      <button className="btn btn-primary btn-sm" onClick={() => handleAcceptRequest(r.id)}>Accept</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleDeclineRequest(r.id)}>Decline</button>
                     </div>
                   </div>
                 ))}
@@ -231,9 +305,9 @@ export const DonorDashboard: React.FC = () => {
           <div className="animate-fade-up">
             <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
               {[
-                { label: 'Total Donations', value: HISTORY.length, color: 'var(--red-600)' },
-                { label: 'Units Donated',   value: HISTORY.length, color: 'var(--info)' },
-                { label: 'Lives Helped',    value: HISTORY.length * 3, color: 'var(--success)' },
+                { label: 'Total Donations', value: history.length, color: 'var(--red-600)' },
+                { label: 'Units Donated',   value: history.length, color: 'var(--info)' },
+                { label: 'Lives Helped',    value: history.length * 3, color: 'var(--success)' },
               ].map(s => (
                 <div key={s.label} className="stat-card" style={{ textAlign: 'center' }}>
                   <p style={{ fontSize: '2.2rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: s.color, margin: '0 0 0.3rem' }}>{s.value}</p>
@@ -246,15 +320,25 @@ export const DonorDashboard: React.FC = () => {
                 <table>
                   <thead><tr><th>Date</th><th>Center / Hospital</th><th>Location</th><th>Units</th><th>Status</th></tr></thead>
                   <tbody>
-                    {HISTORY.map(h => (
-                      <tr key={h.id}>
-                        <td style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>{new Date(h.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                        <td style={{ fontWeight: 600 }}>{h.hospital}</td>
-                        <td style={{ color: 'var(--gray-500)' }}><span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}><MapPin size={13} />{h.location}</span></td>
-                        <td style={{ fontWeight: 700 }}>{h.units}</td>
-                        <td><span className={`badge ${h.badge}`}><CheckCircle2 size={11} />{h.status}</span></td>
+                    {history.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--gray-400)' }}>
+                          <History size={36} style={{ marginBottom: '0.5rem', opacity: 0.5, display: 'inline-block' }} />
+                          <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>No donation history found</p>
+                          <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.7 }}>Your completed donations will appear here.</p>
+                        </td>
                       </tr>
-                    ))}
+                    ) : (
+                      history.map(h => (
+                        <tr key={h.id}>
+                          <td style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>{new Date(h.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                          <td style={{ fontWeight: 600 }}>{h.hospital}</td>
+                          <td style={{ color: 'var(--gray-500)' }}><span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}><MapPin size={13} />{h.location}</span></td>
+                          <td style={{ fontWeight: 700 }}>{h.units}</td>
+                          <td><span className={`badge ${h.badge}`}><CheckCircle2 size={11} />{h.status}</span></td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -269,7 +353,7 @@ export const DonorDashboard: React.FC = () => {
               Hospitals near you that need your blood type (<strong>{bloodType}</strong>).
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {REQUESTS.map(r => (
+              {requests.map(r => (
                 <div key={r.id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <span className="blood-pill blood-pill-lg">{r.blood}</span>
@@ -286,8 +370,8 @@ export const DonorDashboard: React.FC = () => {
                     <span className={`badge ${r.statusBadge}`}>{r.status}</span>
                     {r.status === 'Pending' && (
                       <>
-                        <button className="btn btn-primary btn-sm">Accept</button>
-                        <button className="btn btn-secondary btn-sm">Decline</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleAcceptRequest(r.id)}>Accept</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleDeclineRequest(r.id)}>Decline</button>
                       </>
                     )}
                   </div>
