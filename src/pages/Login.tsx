@@ -20,7 +20,7 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 const redirectByRole = (user: { role?: string }) => {
-  const routes: Record<string, string> = { ADMIN: '/admin', HOSPITAL: '/hospital', DONOR: '/donor' };
+  const routes: Record<string, string> = { BloodBank: '/Blodd_Bank', HOSPITAL: '/hospital', DONOR: '/donor' };
   window.location.href = routes[user?.role ?? ''] ?? '/';
 };
 

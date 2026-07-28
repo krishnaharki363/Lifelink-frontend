@@ -5,10 +5,14 @@
 
 import axios from 'axios';
 
+// VITE_API_URL is set per-environment:
+//   Local dev  → http://localhost:5000/api/v1   (in .env.local)
+//   Production → https://<your-render-url>/api/v1  (in Vercel env vars)
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://lifelink-backend-hpwu.onrender.com/api/v1';
+
 // Create a configured Axios instance
 const api = axios.create({
-  // The backend URL is explicitly configured. In a real app, use import.meta.env.VITE_API_URL
-  baseURL: 'http://localhost:5000/api/v1',
+  baseURL: BASE_URL,
   
   // CRITICAL: This allows Axios to send and receive HTTP-Only cookies (our refresh token)
   // across different origins (e.g., frontend on port 5173, backend on port 5000).
@@ -61,7 +65,7 @@ api.interceptors.response.use(
         // Attempt to hit the refresh endpoint. 
         // The HTTP-only cookie is sent automatically because of `withCredentials`.
         const response = await axios.post(
-          'http://localhost:5000/api/v1/auth/refresh',
+          `${BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
