@@ -20,7 +20,12 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 const redirectByRole = (user: { role?: string }) => {
-  const routes: Record<string, string> = { BloodBank: '/Blodd_Bank', HOSPITAL: '/hospital', DONOR: '/donor' };
+  const routes: Record<string, string> = { 
+    BLOOD_BANK: '/Blodd_Bank', 
+    BloodBank: '/Blodd_Bank', 
+    HOSPITAL: '/hospital', 
+    DONOR: '/donor' 
+  };
   window.location.href = routes[user?.role ?? ''] ?? '/';
 };
 
@@ -36,6 +41,10 @@ export const Login: React.FC = () => {
   const [phone, setPhone]         = useState('');
   const [city, setCity]           = useState('');
   const [state, setState]         = useState('');
+  const [hospitalName, setHospitalName] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [hospitalAddress, setHospitalAddress] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
   const [error, setError]         = useState('');
   const [success, setSuccess]     = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,7 +65,18 @@ export const Login: React.FC = () => {
     try {
       const payload = mode === 'login'
         ? { email, password }
-        : { firstName, lastName, email, password, role, bloodType, phone, city, state };
+        : (role === 'HOSPITAL' || role === 'BLOOD_BANK')
+          ? { 
+              email, 
+              password, 
+              role, 
+              name: hospitalName, 
+              licenseNumber, 
+              address: hospitalAddress, 
+              contactPerson, 
+              phone 
+            }
+          : { firstName, lastName, email, password, role, bloodType, phone, city, state };
       const response = await api.post(mode === 'login' ? '/auth/login' : '/auth/register', payload);
       const data = response.data?.data ?? response.data;
       if (mode === 'login') {
@@ -178,53 +198,85 @@ export const Login: React.FC = () => {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {mode === 'register' && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">First Name</label>
-                    <input className="form-input" type="text" placeholder="Jane" value={firstName} onChange={e => setFirstName(e.target.value)} required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Last Name</label>
-                    <input className="form-input" type="text" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} required />
-                  </div>
-                </div>
-
                 <div className="form-group">
                   <label className="form-label">Account Type</label>
                   <select className="form-select" value={role} onChange={e => setRole(e.target.value)}>
                     <option value="DONOR">Donor</option>
                     <option value="HOSPITAL">Hospital</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="BLOOD_BANK">Blood Bank</option>
                   </select>
                 </div>
 
-                {role === 'DONOR' && (
-                  <div className="form-group">
-                    <label className="form-label">Blood Type</label>
-                    <select className="form-select" value={bloodType} onChange={e => setBloodType(e.target.value)} required>
-                      <option value="">Select blood type</option>
-                      {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bt => (
-                        <option key={bt} value={bt}>{bt}</option>
-                      ))}
-                    </select>
-                  </div>
+                {(role === 'HOSPITAL' || role === 'BLOOD_BANK') ? (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">{role === 'HOSPITAL' ? 'Hospital Name' : 'Blood Bank Name'}</label>
+                      <input className="form-input" type="text" placeholder={role === 'HOSPITAL' ? 'General Hospital' : 'Red Cross Blood Bank'} value={hospitalName} onChange={e => setHospitalName(e.target.value)} required />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">License Number</label>
+                        <input className="form-input" type="text" placeholder="LIC-12345" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} required />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Contact Person</label>
+                        <input className="form-input" type="text" placeholder="John Doe" value={contactPerson} onChange={e => setContactPerson(e.target.value)} required />
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Full Address</label>
+                      <input className="form-input" type="text" placeholder="123 Hospital St, Kathmandu" value={hospitalAddress} onChange={e => setHospitalAddress(e.target.value)} required />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Phone Number</label>
+                      <input className="form-input" type="tel" placeholder="014xxxxxx" value={phone} onChange={e => setPhone(e.target.value)} required />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">First Name</label>
+                        <input className="form-input" type="text" placeholder="Jane" value={firstName} onChange={e => setFirstName(e.target.value)} required />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Last Name</label>
+                        <input className="form-input" type="text" placeholder="Doe" value={lastName} onChange={e => setLastName(e.target.value)} required />
+                      </div>
+                    </div>
+
+                    {role === 'DONOR' && (
+                      <div className="form-group">
+                        <label className="form-label">Blood Type</label>
+                        <select className="form-select" value={bloodType} onChange={e => setBloodType(e.target.value)} required>
+                          <option value="">Select blood type</option>
+                          {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bt => (
+                            <option key={bt} value={bt}>{bt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="form-group">
+                      <label className="form-label">Phone Number</label>
+                      <input className="form-input" type="tel" placeholder="9876543210" value={phone} onChange={e => setPhone(e.target.value)} required />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div className="form-group">
+                        <label className="form-label">City</label>
+                        <input className="form-input" type="text" placeholder="Kathmandu" value={city} onChange={e => setCity(e.target.value)} required />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">State / Province</label>
+                        <input className="form-input" type="text" placeholder="Bagmati" value={state} onChange={e => setState(e.target.value)} required />
+                      </div>
+                    </div>
+                  </>
                 )}
-
-                <div className="form-group">
-                  <label className="form-label">Phone Number</label>
-                  <input className="form-input" type="tel" placeholder="9876543210" value={phone} onChange={e => setPhone(e.target.value)} required />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">City</label>
-                    <input className="form-input" type="text" placeholder="Kathmandu" value={city} onChange={e => setCity(e.target.value)} required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">State / Province</label>
-                    <input className="form-input" type="text" placeholder="Bagmati" value={state} onChange={e => setState(e.target.value)} required />
-                  </div>
-                </div>
               </>
             )}
 
