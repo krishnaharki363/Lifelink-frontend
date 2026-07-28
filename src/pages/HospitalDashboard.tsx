@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Droplet, LayoutDashboard, Package, ClipboardList, Users,
   BarChart3, LogOut, Plus, Search, AlertTriangle, CheckCircle2,
@@ -17,7 +17,7 @@ const NAV: { key: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 /* ── Mock data ─────────────────────────────────────────────────── */
-const INVENTORY = [
+const INITIAL_INVENTORY = [
   { type: 'A+',  units: 18, capacity: 50, expiringSoon: 2 },
   { type: 'A-',  units: 4,  capacity: 20, expiringSoon: 0 },
   { type: 'B+',  units: 12, capacity: 40, expiringSoon: 1 },
@@ -65,7 +65,104 @@ export const HospitalDashboard: React.FC = () => {
   const [donorSearch, setDonorSearch] = useState('');
   const [reqSuccess, setReqSuccess]   = useState('');
 
-  const name = user?.firstName || user?.name || 'Hospital';
+  const isBloodBank = user?.role === 'BLOOD_BANK';
+  const name = user?.name || (isBloodBank ? 'Blood Bank' : 'Hospital');
+
+  // Dynamic inventory state with localStorage persistence
+  const [inventory, setInventory] = useState<any[]>(() => {
+    const saved = localStorage.getItem('hospital_inventory');
+    return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
+  });
+
+  // Dynamic state for incoming donation requests (offers from donors)
+  const [donationRequests, setDonationRequests] = useState<any[]>(() => {
+    const saved = localStorage.getItem('pending_donations');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Sync inventory and requests state to localStorage
+  useEffect(() => {
+    localStorage.setItem('hospital_inventory', JSON.stringify(inventory));
+  }, [inventory]);
+
+  useEffect(() => {
+    localStorage.setItem('pending_donations', JSON.stringify(donationRequests));
+  }, [donationRequests]);
+
+  // Pre-populate dummy donor requests if none exist
+  useEffect(() => {
+    const saved = localStorage.getItem('pending_donations');
+    if (!saved || JSON.parse(saved).length === 0) {
+      const initial = [
+        { id: 'REQ-042', donorName: 'Krish Harki', bloodType: 'O+', status: 'PendingAcceptance', date: '2026-07-28' },
+        { id: 'DON-902', donorName: 'Maya Rai', bloodType: 'A+', status: 'PendingAcceptance', date: '2026-07-28' }
+      ];
+      setDonationRequests(initial);
+      localStorage.setItem('pending_donations', JSON.stringify(initial));
+    }
+  }, []);
+
+  const handleAcceptDonation = (id: string) => {
+    setDonationRequests(prev => prev.map(req => {
+      if (req.id === id) {
+        return { ...req, status: 'Completed' };
+      }
+      return req;
+    }));
+
+    const acceptedReq = donationRequests.find(r => r.id === id);
+    if (acceptedReq) {
+      // Increase units in inventory
+      setInventory(prev => prev.map(item => {
+        if (item.type === acceptedReq.bloodType) {
+          return { ...item, units: item.units + 1 };
+        }
+        return item;
+      }));
+
+      // Update donor history status
+      const donorHistory = JSON.parse(localStorage.getItem('donor_history') || '[]');
+      const updatedHistory = donorHistory.map((h: any) => {
+        if (h.id === acceptedReq.id || h.hospital.toLowerCase().includes(name.toLowerCase())) {
+          return { ...h, status: 'Completed', badge: 'badge-green' };
+        }
+        return h;
+      });
+      localStorage.setItem('donor_history', JSON.stringify(updatedHistory));
+
+      // Update donor requests status in localStorage to match accepted status
+      const donorRequests = JSON.parse(localStorage.getItem('donor_requests') || '[]');
+      const updatedDonorReqs = donorRequests.map((r: any) => {
+        if (r.id === acceptedReq.id) {
+          return { ...r, status: 'Completed', statusBadge: 'badge-green' };
+        }
+        return r;
+      });
+      localStorage.setItem('donor_requests', JSON.stringify(updatedDonorReqs));
+    }
+  };
+
+  const handleDeclineDonation = (id: string) => {
+    setDonationRequests(prev => prev.map(req => {
+      if (req.id === id) {
+        return { ...req, status: 'Declined' };
+      }
+      return req;
+    }));
+
+    const declinedReq = donationRequests.find(r => r.id === id);
+    if (declinedReq) {
+      // Update donor requests status in localStorage to match declined status
+      const donorRequests = JSON.parse(localStorage.getItem('donor_requests') || '[]');
+      const updatedDonorReqs = donorRequests.map((r: any) => {
+        if (r.id === declinedReq.id) {
+          return { ...r, status: 'Declined', statusBadge: 'badge-gray' };
+        }
+        return r;
+      });
+      localStorage.setItem('donor_requests', JSON.stringify(updatedDonorReqs));
+    }
+  };
 
   const filteredRequests = REQUESTS.filter(r =>
     r.patient.toLowerCase().includes(reqSearch.toLowerCase()) ||
@@ -85,8 +182,8 @@ export const HospitalDashboard: React.FC = () => {
   };
 
   const criticalCount = REQUESTS.filter(r => r.urgency === 'Critical' && r.status === 'Open').length;
-  const totalUnits    = INVENTORY.reduce((s, i) => s + i.units, 0);
-  const lowStock      = INVENTORY.filter(i => i.units / i.capacity < 0.2);
+  const totalUnits    = inventory.reduce((s, i) => s + i.units, 0);
+  const lowStock      = inventory.filter(i => i.units / i.capacity < 0.2);
 
   return (
     <div className="dash-layout">
@@ -108,10 +205,10 @@ export const HospitalDashboard: React.FC = () => {
           </div>
         )}
 
-        <p className="nav-section-title">Hospital Portal</p>
+        <p className="nav-section-title">{isBloodBank ? 'Blood Bank Portal' : 'Hospital Portal'}</p>
         {NAV.map(({ key, label, icon: Icon }) => (
           <button key={key} className={`nav-item ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>
-            <Icon size={17} /> {label}
+            <Icon size={17} /> {key === 'donors' && isBloodBank ? 'Blood Donations' : label}
             {key === 'requests' && REQUESTS.filter(r => r.status === 'Open').length > 0 && (
               <span style={{ marginLeft: 'auto', background: 'var(--red-600)', color: '#fff', borderRadius: 'var(--radius-full)', padding: '0.1rem 0.5rem', fontSize: '0.7rem', fontWeight: 700 }}>
                 {REQUESTS.filter(r => r.status === 'Open').length}
@@ -124,7 +221,7 @@ export const HospitalDashboard: React.FC = () => {
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
           <div style={{ padding: '0.6rem 0.85rem', marginBottom: '0.5rem' }}>
             <p style={{ margin: 0, fontWeight: 600, fontSize: '0.88rem', color: 'var(--gray-900)' }}>{name}</p>
-            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--gray-400)' }}>Hospital Account</p>
+            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--gray-400)' }}>{isBloodBank ? 'Blood Bank Account' : 'Hospital Account'}</p>
           </div>
           <button className="nav-item" onClick={() => void logout()} style={{ color: 'var(--error)' }}>
             <LogOut size={16} /> Sign out
@@ -188,11 +285,11 @@ export const HospitalDashboard: React.FC = () => {
               {/* Inventory summary */}
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <h3 style={{ margin: 0 }}>Blood Inventory</h3>
+                  <h3 style={{ margin: 0 }}>{isBloodBank ? 'Blood Bank Inventory' : 'Blood Inventory'}</h3>
                   <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red-600)' }} onClick={() => setTab('inventory')}>View all →</button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  {INVENTORY.map(i => {
+                  {inventory.map(i => {
                     const pct = Math.round((i.units / i.capacity) * 100);
                     const color = pct < 20 ? 'var(--error)' : pct < 40 ? 'var(--warning)' : 'var(--red-600)';
                     return (
@@ -231,6 +328,33 @@ export const HospitalDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Incoming Donation Requests */}
+            {donationRequests.filter(r => r.status === 'PendingAcceptance').length > 0 && (
+              <div className="card" style={{ marginTop: '1.25rem', borderLeft: '4px solid var(--success)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <Droplet size={18} color="var(--success)" />
+                  <h3 style={{ margin: 0, color: 'var(--success)' }}>Incoming Blood Donation Offers</h3>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {donationRequests.filter(r => r.status === 'PendingAcceptance').map(r => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', background: 'var(--success-bg)', borderRadius: 'var(--radius-md)', gap: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span className="blood-pill">{r.bloodType}</span>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{r.donorName}</p>
+                          <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-500)' }}>Wants to donate · Offered on {r.date}</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleAcceptDonation(r.id)} style={{ background: 'var(--success)', borderColor: 'var(--success)' }}>Accept Donation</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => handleDeclineDonation(r.id)}>Decline</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -244,7 +368,7 @@ export const HospitalDashboard: React.FC = () => {
               </div>
             )}
             <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
-              {INVENTORY.map(i => {
+              {inventory.map(i => {
                 const pct   = Math.round((i.units / i.capacity) * 100);
                 const color = pct < 20 ? 'var(--error)' : pct < 40 ? 'var(--warning)' : 'var(--success)';
                 const bg    = pct < 20 ? 'var(--error-bg)' : pct < 40 ? 'var(--warning-bg)' : 'var(--success-bg)';
@@ -309,8 +433,40 @@ export const HospitalDashboard: React.FC = () => {
         {/* ── DONORS ── */}
         {tab === 'donors' && (
           <div className="animate-fade-up">
+            {/* Donation Offers Section */}
+            <div className="card" style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ marginBottom: '1rem' }}>Incoming Blood Donation Offers</h3>
+              {donationRequests.length === 0 ? (
+                <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', margin: 0 }}>No donation offers received yet.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {donationRequests.map(r => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem', background: r.status === 'PendingAcceptance' ? 'var(--success-bg)' : 'var(--gray-50)', borderRadius: 'var(--radius-md)', gap: '1rem', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span className="blood-pill blood-pill-lg">{r.bloodType}</span>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem' }}>{r.donorName}</p>
+                          <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-500)' }}>Offered on {r.date} · Status: <strong style={{ color: r.status === 'Completed' ? 'var(--success)' : r.status === 'Declined' ? 'var(--error)' : 'var(--warning)' }}>{r.status === 'PendingAcceptance' ? 'Pending' : r.status}</strong></p>
+                        </div>
+                      </div>
+                      {r.status === 'PendingAcceptance' ? (
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => handleAcceptDonation(r.id)} style={{ background: 'var(--success)', borderColor: 'var(--success)' }}>Accept Donation</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => handleDeclineDonation(r.id)}>Decline</button>
+                        </div>
+                      ) : (
+                        <span className={`badge ${r.status === 'Completed' ? 'badge-green' : 'badge-gray'}`}>{r.status}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Matched Donors Section */}
+            <h3 style={{ marginBottom: '0.75rem' }}>Proactive Donor Matching</h3>
             <p style={{ color: 'var(--gray-500)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
-              Donors matched to your open blood requests based on blood type and proximity.
+              Search registered donors matching your open blood requests to contact them proactively.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
               <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
@@ -376,7 +532,7 @@ export const HospitalDashboard: React.FC = () => {
               <div className="card">
                 <h3 style={{ marginBottom: '1.25rem' }}>Inventory Health</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {INVENTORY.map(i => {
+                  {inventory.map(i => {
                     const pct = Math.round((i.units / i.capacity) * 100);
                     return (
                       <div key={i.type}>

@@ -31,7 +31,12 @@ const ProtectedRoute = ({
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     // Redirect to correct dashboard instead of login
-    const roleRoutes: Record<string, string> = { ADMIN: '/admin', HOSPITAL: '/hospital', DONOR: '/donor' };
+    const roleRoutes: Record<string, string> = { 
+      ADMIN: '/admin', 
+      HOSPITAL: '/hospital', 
+      BLOOD_BANK: '/Blodd_Bank',
+      DONOR: '/donor' 
+    };
     return <Navigate to={roleRoutes[user.role] ?? '/login'} replace />;
   }
 
@@ -50,6 +55,7 @@ const App = () => {
         {/* Protected — role-gated */}
         <Route path="/admin"    element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/hospital" element={<ProtectedRoute allowedRoles={['HOSPITAL']}><HospitalDashboard /></ProtectedRoute>} />
+        <Route path="/Blodd_Bank" element={<ProtectedRoute allowedRoles={['BLOOD_BANK']}><HospitalDashboard /></ProtectedRoute>} />
         <Route path="/donor"    element={<ProtectedRoute allowedRoles={['DONOR']}><DonorDashboard /></ProtectedRoute>} />
 
         {/* Catch-all */}

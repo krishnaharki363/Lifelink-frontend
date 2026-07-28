@@ -55,9 +55,11 @@ export const DonorDashboard: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const completedDonations = history.filter(h => h.status === 'Completed');
+
   // Next eligible date calculation
-  const nextEligible = history.length
-    ? (() => { const d = new Date(history[0].date); d.setDate(d.getDate() + 84); return d.toLocaleDateString(); })()
+  const nextEligible = completedDonations.length
+    ? (() => { const d = new Date(completedDonations[0].date); d.setDate(d.getDate() + 84); return d.toLocaleDateString(); })()
     : 'Eligible now';
 
   // Sync profile fields when user loads
@@ -96,23 +98,38 @@ export const DonorDashboard: React.FC = () => {
   const handleAcceptRequest = (requestId: string) => {
     setRequests(prev => prev.map(r => {
       if (r.id === requestId) {
-        return { ...r, status: 'Completed', statusBadge: 'badge-green' };
+        return { ...r, status: 'Pending Acceptance', statusBadge: 'badge-yellow' };
       }
       return r;
     }));
 
     const request = requests.find(r => r.id === requestId);
     if (request) {
+      // 1. Add to donor's history state with 'Pending Acceptance' status (badge-yellow)
       const newDonation = {
         id: request.id,
         date: new Date().toISOString().split('T')[0],
         hospital: request.hospital,
         location: 'Kathmandu',
         units: 1,
-        status: 'Completed',
-        badge: 'badge-green'
+        status: 'Pending Acceptance',
+        badge: 'badge-yellow'
       };
       setHistory(prev => [newDonation, ...prev]);
+
+      // 2. Add to shared pending_donations for hospital dashboard to see
+      const pending = JSON.parse(localStorage.getItem('pending_donations') || '[]');
+      const newOffer = {
+        id: request.id,
+        donorName: name,
+        bloodType: bloodType,
+        status: 'PendingAcceptance',
+        date: new Date().toISOString().split('T')[0]
+      };
+      // Prevent duplicate offers
+      if (!pending.some((p: any) => p.id === request.id)) {
+        localStorage.setItem('pending_donations', JSON.stringify([newOffer, ...pending]));
+      }
     }
   };
 
@@ -203,8 +220,8 @@ export const DonorDashboard: React.FC = () => {
           <div className="animate-fade-up">
             <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
               {[
-                { label: 'Total Donations', value: history.length, icon: Heart,        color: 'var(--red-600)', bg: 'var(--red-50)' },
-                { label: 'Lives Saved',     value: history.length * 3, icon: Award,    color: 'var(--success)', bg: 'var(--success-bg)' },
+                { label: 'Total Donations', value: completedDonations.length, icon: Heart,        color: 'var(--red-600)', bg: 'var(--red-50)' },
+                { label: 'Lives Saved',     value: completedDonations.length * 3, icon: Award,    color: 'var(--success)', bg: 'var(--success-bg)' },
                 { label: 'Open Requests',   value: requests.filter(r => r.status === 'Pending').length, icon: Bell, color: 'var(--warning)', bg: 'var(--warning-bg)' },
                 { label: 'Next Eligible',   value: nextEligible,   icon: Calendar,     color: 'var(--info)',    bg: 'var(--info-bg)', small: true },
               ].map(c => {
@@ -257,9 +274,9 @@ export const DonorDashboard: React.FC = () => {
               <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <h3 style={{ margin: 0 }}>Your Impact</h3>
                 {[
-                  { label: 'Units donated', val: `${history.length} units` },
-                  { label: 'Estimated lives saved', val: `${history.length * 3} people` },
-                  { label: 'Donation streak', val: `${history.length} donations` },
+                  { label: 'Units donated', val: `${completedDonations.length} units` },
+                  { label: 'Estimated lives saved', val: `${completedDonations.length * 3} people` },
+                  { label: 'Donation streak', val: `${completedDonations.length} donations` },
                   { label: 'Donor since', val: '2026' },
                 ].map(m => (
                   <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--gray-100)' }}>
@@ -305,9 +322,9 @@ export const DonorDashboard: React.FC = () => {
           <div className="animate-fade-up">
             <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
               {[
-                { label: 'Total Donations', value: history.length, color: 'var(--red-600)' },
-                { label: 'Units Donated',   value: history.length, color: 'var(--info)' },
-                { label: 'Lives Helped',    value: history.length * 3, color: 'var(--success)' },
+                { label: 'Total Donations', value: completedDonations.length, color: 'var(--red-600)' },
+                { label: 'Units Donated',   value: completedDonations.length, color: 'var(--info)' },
+                { label: 'Lives Helped',    value: completedDonations.length * 3, color: 'var(--success)' },
               ].map(s => (
                 <div key={s.label} className="stat-card" style={{ textAlign: 'center' }}>
                   <p style={{ fontSize: '2.2rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: s.color, margin: '0 0 0.3rem' }}>{s.value}</p>

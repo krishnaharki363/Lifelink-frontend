@@ -21,6 +21,7 @@ const getErrorMessage = (error: unknown): string => {
 
 const redirectByRole = (user: { role?: string }) => {
   const routes: Record<string, string> = { 
+    ADMIN: '/admin',
     BLOOD_BANK: '/Blodd_Bank', 
     BloodBank: '/Blodd_Bank', 
     HOSPITAL: '/hospital', 
