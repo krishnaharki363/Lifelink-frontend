@@ -7,23 +7,23 @@ import {
 } from 'lucide-react';
 
 const BLOOD_COMPATIBILITY: Record<string, { donate: string[]; receive: string[] }> = {
-  'O-':  { donate: ['O-','O+','A-','A+','B-','B+','AB-','AB+'], receive: ['O-'] },
-  'O+':  { donate: ['O+','A+','B+','AB+'],                       receive: ['O-','O+'] },
-  'A-':  { donate: ['A-','A+','AB-','AB+'],                      receive: ['O-','A-'] },
-  'A+':  { donate: ['A+','AB+'],                                  receive: ['O-','O+','A-','A+'] },
-  'B-':  { donate: ['B-','B+','AB-','AB+'],                      receive: ['O-','B-'] },
-  'B+':  { donate: ['B+','AB+'],                                  receive: ['O-','O+','B-','B+'] },
-  'AB-': { donate: ['AB-','AB+'],                                 receive: ['O-','A-','B-','AB-'] },
-  'AB+': { donate: ['AB+'],                                       receive: ['O-','O+','A-','A+','B-','B+','AB-','AB+'] },
+  'O-': { donate: ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'], receive: ['O-'] },
+  'O+': { donate: ['O+', 'A+', 'B+', 'AB+'], receive: ['O-', 'O+'] },
+  'A-': { donate: ['A-', 'A+', 'AB-', 'AB+'], receive: ['O-', 'A-'] },
+  'A+': { donate: ['A+', 'AB+'], receive: ['O-', 'O+', 'A-', 'A+'] },
+  'B-': { donate: ['B-', 'B+', 'AB-', 'AB+'], receive: ['O-', 'B-'] },
+  'B+': { donate: ['B+', 'AB+'], receive: ['O-', 'O+', 'B-', 'B+'] },
+  'AB-': { donate: ['AB-', 'AB+'], receive: ['O-', 'A-', 'B-', 'AB-'] },
+  'AB+': { donate: ['AB+'], receive: ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'] },
 };
 
-const BLOOD_TYPES = ['O-','O+','A-','A+','B-','B+','AB-','AB+'];
+const BLOOD_TYPES = ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
 
 const STATS = [
-  { value: '12,400+', label: 'Registered Donors',   icon: Users,     color: 'var(--red-600)' },
-  { value: '87',      label: 'Partner Hospitals',   icon: Building2, color: 'var(--info)' },
-  { value: '4,200+',  label: 'Lives Saved',         icon: Heart,     color: 'var(--success)' },
-  { value: '98%',     label: 'Match Success Rate',  icon: TrendingUp,color: 'var(--warning)' },
+  { value: '12,400+', label: 'Registered Donors', icon: Users, color: 'var(--red-600)' },
+  { value: '87', label: 'Partner Hospitals', icon: Building2, color: 'var(--info)' },
+  { value: '4,200+', label: 'Lives Saved', icon: Heart, color: 'var(--success)' },
+  { value: '98%', label: 'Match Success Rate', icon: TrendingUp, color: 'var(--warning)' },
 ];
 
 const FEATURES = [
@@ -59,14 +59,14 @@ const FEATURES = [
 
 const HOW_IT_WORKS = [
   { step: '01', title: 'Register as a Donor', desc: 'Create your free account, fill in your health profile, and get verified in 24 hours.' },
-  { step: '02', title: 'Get Matched',          desc: 'When a hospital near you needs your blood type, you receive an instant notification.' },
-  { step: '03', title: 'Donate & Save Lives',  desc: 'Visit the designated center, donate, and track your impact on your dashboard.' },
+  { step: '02', title: 'Get Matched', desc: 'When a hospital near you needs your blood type, you receive an instant notification.' },
+  { step: '03', title: 'Donate & Save Lives', desc: 'Visit the designated center, donate, and track your impact on your dashboard.' },
 ];
 
 const TESTIMONIALS = [
-  { name: 'Krishna Prasad Naharki',  role: 'Chief Executive Officer, Samjhana Medicall Hall', text: 'LifeLink cut our blood sourcing time from 6 hours to under 45 minutes. It\'s genuinely life-saving technology.', rating: 5 },
-  { name: 'Krisha Naharki',       role: 'Blood Donor since 2022',              text: 'I\'ve donated 7 times through LifeLink. The app makes scheduling effortless and I can see exactly who I\'ve helped.', rating: 5 },
-  { name: 'Samrat Karki',   role: 'Hospital Admin, City Clinic',         text: 'Managing our blood inventory used to be a nightmare. LifeLink gives us complete visibility and control.', rating: 5 },
+  { name: 'Krishna Prasad Naharki', role: 'Chief Executive Officer, Samjhana Medicall Hall', text: 'LifeLink cut our blood sourcing time from 6 hours to under 45 minutes. It\'s genuinely life-saving technology.', rating: 5 },
+  { name: 'Krisha Naharki', role: 'Blood Donor since 2022', text: 'I\'ve donated 7 times through LifeLink. The app makes scheduling effortless and I can see exactly who I\'ve helped.', rating: 5 },
+  { name: 'Samrat Karki', role: 'Hospital Admin, City Clinic', text: 'Managing our blood inventory used to be a nightmare. LifeLink gives us complete visibility and control.', rating: 5 },
 ];
 
 export const Landing: React.FC = () => {
@@ -386,9 +386,9 @@ export const Landing: React.FC = () => {
               <p style={{ color: '#fff', fontWeight: 700, marginBottom: '1rem', fontSize: '0.9rem' }}>Platform</p>
               {[
                 { label: 'Donor Registration', to: '/register' },
-                { label: 'Hospital Portal',    to: '/login' },
-                { label: 'Admin Dashboard',    to: '/login' },
-                { label: 'Blood Inventory',    to: '/login' },
+                { label: 'Hospital Portal', to: '/login' },
+                { label: 'Admin Dashboard', to: '/login' },
+                { label: 'Blood Inventory', to: '/login' },
               ].map(l => (
                 <Link key={l.label} to={l.to} style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', transition: 'color var(--t-fast)' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
@@ -401,21 +401,21 @@ export const Landing: React.FC = () => {
               <p style={{ color: '#fff', fontWeight: 700, marginBottom: '1rem', fontSize: '0.9rem' }}>Resources</p>
               {[
                 { label: 'Eligibility Guide', to: '/register' },
-                { label: 'Donation FAQ',      to: '/register' },
-                { label: 'Blood Types 101',   to: '/#blood-types' },
-                { label: 'Contact Us',        href: 'mailto:support@lifelink.np' },
+                { label: 'Donation FAQ', to: '/register' },
+                { label: 'Blood Types 101', to: '/#blood-types' },
+                { label: 'Contact Us', href: 'mailto:support@lifelink.np' },
               ].map(l => (
                 l.href
                   ? <a key={l.label} href={l.href} style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', transition: 'color var(--t-fast)' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
-                      {l.label}
-                    </a>
+                    onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
+                    {l.label}
+                  </a>
                   : <Link key={l.label} to={l.to!} style={{ display: 'block', marginBottom: '0.6rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', transition: 'color var(--t-fast)' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
-                      {l.label}
-                    </Link>
+                    onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}>
+                    {l.label}
+                  </Link>
               ))}
             </div>
           </div>

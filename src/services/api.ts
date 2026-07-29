@@ -8,7 +8,8 @@ import axios from 'axios';
 // VITE_API_URL is set per-environment:
 //   Local dev  → http://localhost:5000/api/v1   (in .env.local)
 //   Production → https://<your-render-url>/api/v1  (in Vercel env vars)
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://lifelink-backend-hpwu.onrender.com/api/v1';
+const BASE_URL = import.meta.env.VITE_API_URL ?? 
+  (import.meta.env.DEV ? 'http://localhost:5000/api/v1' : 'https://lifelink-backend-hpwu.onrender.com/api/v1');
 
 // Create a configured Axios instance
 const api = axios.create({
