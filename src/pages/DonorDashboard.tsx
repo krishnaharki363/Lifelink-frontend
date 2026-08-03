@@ -59,6 +59,8 @@ export const DonorDashboard: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState('');
 
   const completedDonations = history.filter(h => h.status === 'Completed');
+  const totalUnitsDonated = completedDonations.reduce((sum, h) => sum + (h.units || 0), 0);
+  const estimatedLivesSaved = totalUnitsDonated * 3;
 
   // Next eligible date calculation
   const nextEligible = completedDonations.length
@@ -394,7 +396,7 @@ export const DonorDashboard: React.FC = () => {
             <div className="grid-4" style={{ marginBottom: '1.5rem' }}>
               {[
                 { label: 'Total Donations', value: completedDonations.length, icon: Heart,        color: 'var(--red-600)', bg: 'var(--red-50)' },
-                { label: 'Lives Saved',     value: completedDonations.length * 3, icon: Award,    color: 'var(--success)', bg: 'var(--success-bg)' },
+                { label: 'Lives Saved',     value: estimatedLivesSaved, icon: Award,    color: 'var(--success)', bg: 'var(--success-bg)' },
                 { label: 'Open Requests',   value: visibleRequests.length, icon: Bell, color: 'var(--warning)', bg: 'var(--warning-bg)' },
                 { label: 'Next Eligible',   value: nextEligible,   icon: Calendar,     color: 'var(--info)',    bg: 'var(--info-bg)', small: true },
               ].map(c => {
@@ -447,8 +449,8 @@ export const DonorDashboard: React.FC = () => {
               <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <h3 style={{ margin: 0 }}>Your Impact</h3>
                 {[
-                  { label: 'Units donated', val: `${completedDonations.length} units` },
-                  { label: 'Estimated lives saved', val: `${completedDonations.length * 3} people` },
+                  { label: 'Units donated', val: `${totalUnitsDonated} units` },
+                  { label: 'Estimated lives saved', val: `${estimatedLivesSaved} people` },
                   { label: 'Donation streak', val: `${completedDonations.length} donations` },
                   { label: 'Donor since', val: '2026' },
                 ].map(m => (
@@ -498,8 +500,8 @@ export const DonorDashboard: React.FC = () => {
             <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
               {[
                 { label: 'Total Donations', value: completedDonations.length, color: 'var(--red-600)' },
-                { label: 'Units Donated',   value: completedDonations.length, color: 'var(--info)' },
-                { label: 'Lives Helped',    value: completedDonations.length * 3, color: 'var(--success)' },
+                { label: 'Units Donated',   value: totalUnitsDonated, color: 'var(--info)' },
+                { label: 'Lives Helped',    value: estimatedLivesSaved, color: 'var(--success)' },
               ].map(s => (
                 <div key={s.label} className="stat-card" style={{ textAlign: 'center' }}>
                   <p style={{ fontSize: '2.2rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: s.color, margin: '0 0 0.3rem' }}>{s.value}</p>
