@@ -19,6 +19,7 @@ export interface User {
   municipality?: string;
   address?: string;
   availability?: string;
+  notificationsEnabled?: boolean;
   status?: string;
 }
 
