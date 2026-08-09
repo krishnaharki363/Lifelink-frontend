@@ -1,38 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import { AuthContext } from './auth-context';
+import type { User } from './auth-context';
 
-export interface User {
-  id: string;
-  email: string;
-  role: 'ADMIN' | 'DONOR' | 'HOSPITAL' | 'BLOOD_BANK';
-  isEmailVerified: boolean;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  username?: string;
-  bloodType?: string;
-  city?: string;
-  state?: string;
-  phone?: string;
-  province?: string;
-  district?: string;
-  municipality?: string;
-  address?: string;
-  availability?: string;
-  notificationsEnabled?: boolean;
-  status?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (token: string, userData: User) => void;
-  logout: () => Promise<void>;
-  updateUser: (partial: Partial<User>) => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export type { User } from './auth-context';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser]         = useState<User | null>(null);
@@ -43,7 +14,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token      = localStorage.getItem('accessToken');
     if (storedUser && token) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser) as User;
+        setUser({ ...parsed, verificationStatus: parsed.verificationStatus ?? 'APPROVED' });
       } catch {
         localStorage.removeItem('user');
         localStorage.removeItem('accessToken');
@@ -52,13 +24,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = (token: string, userData: User) => {
+  const login = useCallback((token: string, userData: User) => {
     localStorage.setItem('accessToken', token);
     localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-  };
+    setUser({ ...userData, verificationStatus: userData.verificationStatus ?? 'APPROVED' });
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.post('/auth/logout');
     } catch {
@@ -69,26 +41,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       window.location.href = '/login';
     }
-  };
+  }, []);
 
-  const updateUser = (partial: Partial<User>) => {
+  const updateUser = useCallback((partial: Partial<User>) => {
     setUser(prev => {
       if (!prev) return prev;
       const updated = { ...prev, ...partial };
       localStorage.setItem('user', JSON.stringify(updated));
       return updated;
     });
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
 };

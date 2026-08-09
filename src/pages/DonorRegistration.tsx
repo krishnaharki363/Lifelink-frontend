@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 import {
-  Droplets, User, Heart, Calendar, Phone,
+  Droplets, User, Heart, Calendar, Phone, Building2,
   MapPin, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, Check
 } from 'lucide-react';
 
@@ -18,11 +18,13 @@ const STEPS: { key: Step; label: string; icon: React.ElementType }[] = [
 ];
 
 const BLOOD_TYPES = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+type RegistrationRole = 'DONOR' | 'HOSPITAL' | 'BLOOD_BANK';
 
 export const DonorRegistration: React.FC = () => {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('personal');
+  const [accountType, setAccountType] = useState<RegistrationRole>('DONOR');
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,6 +70,10 @@ export const DonorRegistration: React.FC = () => {
 
   const stepIndex = STEPS.findIndex(s => s.key === step);
 
+  if (accountType !== 'DONOR') {
+    return <OrganizationRegistration role={accountType} onBack={() => setAccountType('DONOR')} onRoleChange={setAccountType} />;
+  }
+
   const canProceed = (): boolean => {
     switch (step) {
       case 'personal':
@@ -103,7 +109,7 @@ export const DonorRegistration: React.FC = () => {
     try {
       const payload = {
         fullName, dateOfBirth, gender, bloodGroup, phone,
-        email: email || null, province, district, municipality,
+        email, province, district, municipality,
         address: fullAddress, password, role: 'DONOR',
         health: {
           weight, lastDonationDate: lastDonationDate || null,
@@ -128,8 +134,9 @@ export const DonorRegistration: React.FC = () => {
         setTimeout(() => navigate('/login'), 1400);
       }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(e?.response?.data?.message || e?.message || 'Registration failed. Please try again.');
+      const e = err as { response?: { status?: number; data?: { message?: string }; headers?: Record<string, string> }; message?: string };
+      const retryAfter = e.response?.headers?.['retry-after'];
+      setError(e?.response?.data?.message || (e.response?.status === 429 && retryAfter ? `Too many attempts. Please try again in ${retryAfter} seconds.` : undefined) || e?.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -150,7 +157,19 @@ export const DonorRegistration: React.FC = () => {
             </span>
           </Link>
           <span style={{ color: 'var(--gray-300)', marginLeft: '0.25rem' }}>/</span>
-          <span style={{ color: 'var(--gray-500)', fontSize: '0.9rem' }}>Donor Registration</span>
+          <span style={{ color: 'var(--gray-500)', fontSize: '0.9rem' }}>Registration</span>
+        </div>
+
+        <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+          <label className="form-label">Account type</label>
+          <select className="form-select" value={accountType} onChange={e => setAccountType(e.target.value as RegistrationRole)}>
+            <option value="DONOR">Donor</option>
+            <option value="HOSPITAL">Hospital</option>
+            <option value="BLOOD_BANK">Blood Bank</option>
+          </select>
+          <p style={{ color: 'var(--gray-500)', fontSize: '0.82rem', margin: '0.6rem 0 0' }}>
+            Donors can register immediately. Hospital and Blood Bank accounts are reviewed before operational access is enabled.
+          </p>
         </div>
 
         {/* Progress stepper */}
@@ -247,8 +266,8 @@ export const DonorRegistration: React.FC = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Email Address <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>(optional)</span></label>
-                  <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+                  <label className="form-label">Email Address *</label>
+                  <input className="form-input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
                 </div>
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'grid', gap: '1rem' }}>
                   <p style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)', fontSize: '0.85rem', margin: 0 }}>
@@ -443,6 +462,105 @@ export const DonorRegistration: React.FC = () => {
           Already registered?{' '}
           <Link to="/login" style={{ color: 'var(--red-600)', fontWeight: 600 }}>Sign in here</Link>
         </p>
+      </div>
+    </div>
+  );
+};
+
+const OrganizationRegistration: React.FC<{ role: Exclude<RegistrationRole, 'DONOR'>; onBack: () => void; onRoleChange: (role: RegistrationRole) => void }> = ({ role, onBack, onRoleChange }) => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [address, setAddress] = useState('');
+  const [contactPerson, setContactPerson] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError('');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const response = await api.post('/auth/register', {
+        role, name, licenseNumber, address, contactPerson, phone, email, password,
+      });
+      const data = response.data?.data ?? response.data;
+      if (data?.accessToken && data?.user) {
+        login(data.accessToken, data.user);
+        navigate('/pending-verification');
+      } else {
+        navigate('/login');
+      }
+    } catch (err: unknown) {
+      const caught = err as { response?: { data?: { message?: string }; headers?: Record<string, string> } };
+      const retryAfter = caught.response?.headers?.['retry-after'];
+      setError(caught.response?.data?.message || (retryAfter ? `Too many attempts. Please try again in ${retryAfter} seconds.` : 'Registration failed. Please try again.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-page)', padding: '2rem 1rem' }}>
+      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '10px', background: 'var(--red-600)', display: 'grid', placeItems: 'center' }}><Droplets size={20} color="#fff" /></div>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.2rem', color: 'var(--gray-900)' }}>Life<span style={{ color: 'var(--red-600)' }}>Link</span></span>
+          </Link>
+          <span style={{ color: 'var(--gray-300)' }}>/</span>
+          <span style={{ color: 'var(--gray-500)', fontSize: '0.9rem' }}>Registration</span>
+        </div>
+
+        <div className="card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+          <label className="form-label">Account type</label>
+          <select className="form-select" value={role} onChange={e => onRoleChange(e.target.value as RegistrationRole)}>
+            <option value="DONOR">Donor</option>
+            <option value="HOSPITAL">Hospital</option>
+            <option value="BLOOD_BANK">Blood Bank</option>
+          </select>
+        </div>
+
+        <div className="card animate-fade-up">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <Building2 size={24} color="var(--red-600)" />
+            <div>
+              <h2 style={{ margin: 0 }}>{role === 'HOSPITAL' ? 'Register a Hospital' : 'Register a Blood Bank'}</h2>
+              <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', margin: '0.35rem 0 0' }}>Your license will be reviewed by a LifeLink administrator.</p>
+            </div>
+          </div>
+          {error && <div className="alert alert-error" style={{ marginBottom: '1.25rem' }}><AlertCircle size={16} /><span>{error}</span></div>}
+          <form onSubmit={submit} style={{ display: 'grid', gap: '1rem' }}>
+            <div className="form-group"><label className="form-label">{role === 'HOSPITAL' ? 'Hospital' : 'Blood Bank'} Name *</label><input className="form-input" value={name} onChange={e => setName(e.target.value)} required minLength={3} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group"><label className="form-label">License Number *</label><input className="form-input" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} required minLength={5} /></div>
+              <div className="form-group"><label className="form-label">Contact Person *</label><input className="form-input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} required /></div>
+            </div>
+            <div className="form-group"><label className="form-label">Full Address *</label><textarea className="form-textarea" value={address} onChange={e => setAddress(e.target.value)} required minLength={10} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group"><label className="form-label">Phone Number *</label><input className="form-input" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required /></div>
+              <div className="form-group"><label className="form-label">Email Address *</label><input className="form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group"><label className="form-label">Password *</label><input className="form-input" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} /></div>
+              <div className="form-group"><label className="form-label">Confirm Password *</label><input className="form-input" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required /></div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+              <button type="button" onClick={onBack} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Back</button>
+              <button type="submit" disabled={isSubmitting} className="btn btn-primary" style={{ flex: 2, justifyContent: 'center' }}>{isSubmitting ? 'Submitting…' : 'Submit for Verification'}</button>
+            </div>
+          </form>
+        </div>
+        <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--gray-400)', fontSize: '0.85rem' }}>Already registered? <Link to="/login" style={{ color: 'var(--red-600)', fontWeight: 600 }}>Sign in here</Link></p>
       </div>
     </div>
   );

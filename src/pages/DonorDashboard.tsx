@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Droplet, LayoutDashboard, History, Bell, Settings,
   LogOut, Heart, Calendar, MapPin, Clock, CheckCircle2,
   AlertCircle, Edit3, Lock, ChevronRight, Award, Zap
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 
 type Tab = 'overview' | 'history' | 'requests' | 'schedule' | 'settings';
@@ -69,7 +69,7 @@ export const DonorDashboard: React.FC = () => {
 
   // ─── Fetching Data ─────────────────────────────────────────────────────────
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const res = await api.get('/donors/profile');
       const data = res.data.data;
@@ -88,18 +88,18 @@ export const DonorDashboard: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch donor profile', err);
     }
-  };
+  }, [updateUser]);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('/notifications');
       setNotifications(res.data.data);
     } catch (err) {
       console.error('Failed to fetch notifications', err);
     }
-  };
+  }, []);
 
-  const fetchBloodBanks = async () => {
+  const fetchBloodBanks = useCallback(async () => {
     try {
       const res = await api.get('/blood-banks');
       setBloodBanks(res.data.data);
@@ -109,9 +109,9 @@ export const DonorDashboard: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch blood banks', err);
     }
-  };
+  }, []);
 
-  const fetchRequestsAndHistory = async () => {
+  const fetchRequestsAndHistory = useCallback(async () => {
     setLoading(true);
     setErrorMsg('');
     try {
@@ -159,17 +159,17 @@ export const DonorDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [bloodType]);
 
   useEffect(() => {
     fetchProfile();
     fetchNotifications();
     fetchBloodBanks();
-  }, []);
+  }, [fetchProfile, fetchNotifications, fetchBloodBanks]);
 
   useEffect(() => {
     fetchRequestsAndHistory();
-  }, [tab]);
+  }, [tab, fetchRequestsAndHistory]);
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 

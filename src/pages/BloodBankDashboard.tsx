@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Droplet, LayoutDashboard, Package, ClipboardList, Users,
   BarChart3, LogOut, Search, CheckCircle2,
   Clock, Activity, Bell
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 
 type Tab = 'overview' | 'inventory' | 'requests' | 'donors' | 'analytics';
@@ -69,25 +69,25 @@ export const BloodBankDashboard: React.FC = () => {
 
   // ─── Fetching Data ─────────────────────────────────────────────────────────
 
-  const fetchMatchedRequests = async () => {
+  const fetchMatchedRequests = useCallback(async () => {
     try {
       const res = await api.get('/blood-requests');
       setMatchedRequests(res.data.data.data);
     } catch (err) {
       console.error('Failed to fetch matched requests', err);
     }
-  };
+  }, []);
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
       const res = await api.get('/appointments');
       setAppointments(res.data.data);
     } catch (err) {
       console.error('Failed to fetch appointments', err);
     }
-  };
+  }, []);
 
-  const fetchInventory = async () => {
+  const fetchInventory = useCallback(async () => {
     try {
       const res = await api.get('/inventory');
       // Filter system-wide inventory to find only this bank's records
@@ -107,23 +107,23 @@ export const BloodBankDashboard: React.FC = () => {
     } catch (err) {
       console.error('Failed to fetch inventory', err);
     }
-  };
+  }, [user?.id]);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('/notifications');
       setNotifications(res.data.data);
     } catch (err) {
       console.error('Failed to fetch notifications', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMatchedRequests();
     fetchAppointments();
     fetchInventory();
     fetchNotifications();
-  }, [tab]);
+  }, [tab, fetchMatchedRequests, fetchAppointments, fetchInventory, fetchNotifications]);
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
@@ -135,6 +135,18 @@ export const BloodBankDashboard: React.FC = () => {
       fetchNotifications();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to confirm match');
+    }
+  };
+
+  const handleClaimRequest = async (requestId: string) => {
+    try {
+      await api.post(`/blood-requests/${requestId}/claim-inventory`);
+      setReqSuccess('Request claimed and inventory reserved. Confirm delivery when ready.');
+      fetchMatchedRequests();
+      fetchInventory();
+      fetchNotifications();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Unable to claim this request with current stock');
     }
   };
 
@@ -202,7 +214,7 @@ export const BloodBankDashboard: React.FC = () => {
   const pendingRequests = matchedRequests.filter(r => r.status === 'MATCHED_INVENTORY');
   const transitRequests = matchedRequests.filter(r => r.status === 'IN_DELIVERY');
   const completedAppts = appointments.filter(a => a.status === 'COMPLETED');
-  const totalUnits = inventory.reduce((sum, item) => sum + item.unitsAvailable, 0);
+  const totalUnits = inventory.reduce((sum, item) => sum + (item.unitsAvailableForMatching ?? item.unitsAvailable), 0);
 
   return (
     <div className="dash-layout">
@@ -345,11 +357,11 @@ export const BloodBankDashboard: React.FC = () => {
             {/* Quick matched requests list */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
               <div className="card">
-                <h3 style={{ marginBottom: '1.25rem' }}>Incoming Blood Requests (Stock Matches)</h3>
+                <h3 style={{ marginBottom: '1.25rem' }}>Incoming Blood Requests</h3>
                 {pendingRequests.length === 0 && transitRequests.length === 0 ? (
                   <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--gray-400)' }}>
                     <ClipboardList size={32} style={{ marginBottom: '0.5rem', opacity: 0.5, display: 'inline-block' }} />
-                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No blood request claims assigned.</p>
+                    <p style={{ margin: 0, fontSize: '0.9rem' }}>No matching requests are waiting.</p>
                   </div>
                 ) : (
                   [...pendingRequests, ...transitRequests].map(r => (
@@ -360,7 +372,9 @@ export const BloodBankDashboard: React.FC = () => {
                         <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--gray-500)' }}>Requires {r.unitsRequired} units · Urgency: {r.urgency}</p>
                       </div>
                       <div>
-                        {r.status === 'MATCHED_INVENTORY' ? (
+                        {r.status === 'PENDING' ? (
+                          <button className="btn btn-primary btn-sm" onClick={() => handleClaimRequest(r.id)}>Claim with Stock</button>
+                        ) : r.status === 'MATCHED_INVENTORY' ? (
                           <button className="btn btn-primary btn-sm" onClick={() => handleConfirmInventoryMatch(r.id)}>Confirm Match</button>
                         ) : (
                           <button className="btn btn-primary btn-sm" onClick={() => handleFulfillRequest(r.id)} style={{ background: 'var(--success)', borderColor: 'var(--success)' }}>Mark Delivered</button>
@@ -418,7 +432,8 @@ export const BloodBankDashboard: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <p style={{ fontSize: '2.5rem', fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--red-600)', margin: '0 0 0.5rem' }}>{item.unitsAvailable}</p>
+                      <p style={{ fontSize: '2.5rem', fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--red-600)', margin: '0 0 0.5rem' }}>{item.unitsAvailableForMatching ?? item.unitsAvailable}</p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)', margin: '0 0 0.5rem' }}>{item.unitsReserved ?? 0} reserved · {item.unitsAvailable} total</p>
                       <button className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => { setEditingType(item.bloodType); setEditUnits(item.unitsAvailable); }}>
                         Edit Stock
                       </button>
@@ -455,7 +470,7 @@ export const BloodBankDashboard: React.FC = () => {
                   <tbody>
                     {filteredRequests.length === 0 ? (
                       <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--gray-400)' }}>No requests matched to your inventory stock.</td>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--gray-400)' }}>No open or assigned requests found.</td>
                       </tr>
                     ) : (
                       filteredRequests.map(r => (
@@ -467,6 +482,9 @@ export const BloodBankDashboard: React.FC = () => {
                           <td>{new Date(r.requiredByDate).toLocaleDateString()}</td>
                           <td><StatusBadge status={r.status} /></td>
                           <td>
+                            {r.status === 'PENDING' && (
+                              <button className="btn btn-primary btn-xs" onClick={() => handleClaimRequest(r.id)}>Claim with Stock</button>
+                            )}
                             {r.status === 'MATCHED_INVENTORY' && (
                               <button className="btn btn-primary btn-xs" onClick={() => handleConfirmInventoryMatch(r.id)}>Confirm Match</button>
                             )}
@@ -551,12 +569,13 @@ export const BloodBankDashboard: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
                   {inventory.map(item => {
                     const maxCapacity = 100;
-                    const pct = Math.min(Math.round((item.unitsAvailable / maxCapacity) * 100), 100);
+                    const available = item.unitsAvailableForMatching ?? item.unitsAvailable;
+                    const pct = Math.min(Math.round((available / maxCapacity) * 100), 100);
                     return (
                       <div key={item.bloodType}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
                           <span>{item.bloodType.replace('_POS','+').replace('_NEG','-')}</span>
-                          <strong>{item.unitsAvailable} units ({pct}%)</strong>
+                          <strong>{available} available ({pct}%)</strong>
                         </div>
                         <div className="progress-bar">
                           <div className="progress-fill" style={{ width: `${pct}%`, background: 'var(--red-600)' }} />
