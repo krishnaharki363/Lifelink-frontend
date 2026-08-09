@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/useAuth';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { DonorRegistration } from './pages/DonorRegistration';
@@ -8,13 +8,16 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { HospitalDashboard } from './pages/HospitalDashboard';
 import { BloodBankDashboard } from './pages/BloodBankDashboard';
 import { DonorDashboard } from './pages/DonorDashboard';
+import { PendingVerification } from './pages/PendingVerification';
 
 const ProtectedRoute = ({
   children,
   allowedRoles,
+  allowPending = false,
 }: {
   children: React.ReactNode;
   allowedRoles?: string[];
+  allowPending?: boolean;
 }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -30,12 +33,15 @@ const ProtectedRoute = ({
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!allowPending && user && user.verificationStatus !== 'APPROVED' && user.role !== 'DONOR' && user.role !== 'ADMIN') {
+    return <Navigate to="/pending-verification" replace />;
+  }
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     // Redirect to correct dashboard instead of login
     const roleRoutes: Record<string, string> = { 
       ADMIN: '/admin', 
       HOSPITAL: '/hospital', 
-      BLOOD_BANK: '/Blodd_Bank',
+      BLOOD_BANK: '/blood-bank',
       DONOR: '/donor' 
     };
     return <Navigate to={roleRoutes[user.role] ?? '/login'} replace />;
@@ -52,11 +58,14 @@ const App = () => {
         <Route path="/"         element={<Landing />} />
         <Route path="/login"    element={<Login />} />
         <Route path="/register" element={<DonorRegistration />} />
+        <Route path="/pending-verification" element={<ProtectedRoute allowPending><PendingVerification /></ProtectedRoute>} />
 
         {/* Protected — role-gated */}
         <Route path="/admin"    element={<ProtectedRoute allowedRoles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/hospital" element={<ProtectedRoute allowedRoles={['HOSPITAL']}><HospitalDashboard /></ProtectedRoute>} />
-        <Route path="/Blodd_Bank" element={<ProtectedRoute allowedRoles={['BLOOD_BANK']}><BloodBankDashboard /></ProtectedRoute>} />
+        <Route path="/blood-bank" element={<ProtectedRoute allowedRoles={['BLOOD_BANK']}><BloodBankDashboard /></ProtectedRoute>} />
+        {/* Keep the legacy typo as a compatibility alias for existing bookmarks. */}
+        <Route path="/Blodd_Bank" element={<Navigate to="/blood-bank" replace />} />
         <Route path="/donor"    element={<ProtectedRoute allowedRoles={['DONOR']}><DonorDashboard /></ProtectedRoute>} />
 
         {/* Catch-all */}

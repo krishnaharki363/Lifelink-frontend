@@ -4,7 +4,7 @@ import {
   BarChart3, LogOut, Plus, Search, AlertTriangle, CheckCircle2,
   Activity, Phone, MapPin, X, Bell
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 
 type Tab = 'overview' | 'inventory' | 'requests' | 'donors' | 'analytics';
@@ -44,7 +44,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   return <span className={`badge ${map[status] ?? 'badge-gray'}`}>{labelMap[status] ?? status}</span>;
 };
 
-type NewReq = { patientName: string; ward: string; bloodType: string; unitsRequired: number; urgency: string; requiredByDate: string; notes: string };
+type NewReq = { patientName: string; ward: string; bloodType: string; unitsRequired: number | ''; urgency: string; requiredByDate: string; notes: string };
 const EMPTY_REQ = (): NewReq => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -122,10 +122,15 @@ export const HospitalDashboard: React.FC = () => {
     e.preventDefault();
     setReqSuccess('');
     setErrorMsg('');
+    if (newReq.unitsRequired === '' || newReq.unitsRequired < 1 || newReq.unitsRequired > 20) {
+      setErrorMsg('Units needed must be a whole number from 1 to 20.');
+      return;
+    }
     try {
       const requiredByDateIso = new Date(newReq.requiredByDate).toISOString();
       const payload = {
         ...newReq,
+        unitsRequired: newReq.unitsRequired,
         requiredByDate: requiredByDateIso
       };
 
@@ -407,7 +412,7 @@ export const HospitalDashboard: React.FC = () => {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>Available units:</span>
-                      <strong style={{ fontSize: '1.2rem', color: 'var(--red-600)' }}>{inv.unitsAvailable}</strong>
+                      <strong style={{ fontSize: '1.2rem', color: 'var(--red-600)' }}>{inv.unitsAvailableForMatching ?? inv.unitsAvailable}</strong>
                     </div>
                     <p style={{ margin: '0.5rem 0 0', fontSize: '0.7rem', color: 'var(--gray-400)', textAlign: 'right' }}>Last updated: {new Date(inv.lastUpdated).toLocaleDateString()}</p>
                   </div>
@@ -628,7 +633,16 @@ export const HospitalDashboard: React.FC = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Units Needed</label>
-                    <input className="form-input" type="number" min={1} max={20} value={newReq.unitsRequired} onChange={e => setNewReq(prev => ({ ...prev, unitsRequired: parseInt(e.target.value) || 1 }))} required />
+                    <input
+                      className="form-input"
+                      type="number"
+                      min={1}
+                      max={20}
+                      step={1}
+                      value={newReq.unitsRequired}
+                      onChange={e => setNewReq(prev => ({ ...prev, unitsRequired: e.target.value === '' ? '' : Number(e.target.value) }))}
+                      required
+                    />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

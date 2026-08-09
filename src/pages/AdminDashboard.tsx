@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard, Users, Building2, Droplets, BarChart3,
   LogOut, Droplet, ShieldCheck, Search
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 
-type Tab = 'overview' | 'donors' | 'hospitals' | 'requests' | 'analytics';
+type Tab = 'overview' | 'organizations' | 'donors' | 'hospitals' | 'requests' | 'analytics';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const map: Record<string, string> = {
@@ -44,6 +44,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 const NAV: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'overview',   label: 'Overview',      icon: LayoutDashboard },
+  { key: 'organizations', label: 'Verify Organizations', icon: ShieldCheck },
   { key: 'donors',     label: 'Donors',         icon: Users },
   { key: 'hospitals',  label: 'Hospitals',      icon: Building2 },
   { key: 'requests',   label: 'Blood Requests', icon: Droplets },
@@ -69,11 +70,12 @@ export const AdminDashboard: React.FC = () => {
   const [donorsList, setDonorsList] = useState<any[]>([]);
   const [hospitalsList, setHospitalsList] = useState<any[]>([]);
   const [requestsList, setRequestsList] = useState<any[]>([]);
+  const [pendingOrganizations, setPendingOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // ─── Fetching Data ─────────────────────────────────────────────────────────
 
-  const fetchOverviewData = async () => {
+  const fetchOverviewData = useCallback(async () => {
     setLoading(true);
     try {
       const [metRes, actRes, stockRes] = await Promise.all([
@@ -89,9 +91,9 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchTabDetails = async () => {
+  const fetchTabDetails = useCallback(async () => {
     setLoading(true);
     try {
       if (tab === 'donors') {
@@ -103,6 +105,9 @@ export const AdminDashboard: React.FC = () => {
       } else if (tab === 'requests') {
         const res = await api.get('/admin/requests');
         setRequestsList(res.data.data);
+      } else if (tab === 'organizations') {
+        const res = await api.get('/admin/organizations/pending');
+        setPendingOrganizations(res.data.data);
       } else if (tab === 'analytics') {
         const res = await api.get('/admin/inventory');
         setBloodStock(res.data.data);
@@ -112,7 +117,7 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tab]);
 
   useEffect(() => {
     if (tab === 'overview') {
@@ -120,7 +125,7 @@ export const AdminDashboard: React.FC = () => {
     } else {
       fetchTabDetails();
     }
-  }, [tab]);
+  }, [tab, fetchOverviewData, fetchTabDetails]);
 
   // Filters
   const filteredDonors = donorsList.filter(d =>
@@ -139,6 +144,15 @@ export const AdminDashboard: React.FC = () => {
     r.bloodType.includes(requestSearch.toUpperCase()) ||
     r.status.toLowerCase().includes(requestSearch.toLowerCase())
   );
+
+  const updateVerification = async (userId: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await api.patch(`/admin/organizations/${userId}/verification`, { status });
+      setPendingOrganizations(current => current.filter(item => item.id !== userId));
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Could not update verification status');
+    }
+  };
 
   // Grouped active users calculations
   const totalDonors = metrics.users.byRole['DONOR'] || 0;
@@ -270,6 +284,36 @@ export const AdminDashboard: React.FC = () => {
                     <strong style={{ fontSize: '0.85rem', color: 'var(--gray-900)' }}>{totalBanks} centers</strong>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── ORGANIZATION VERIFICATION ── */}
+        {tab === 'organizations' && (
+          <div className="animate-fade-up">
+            <div className="card" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ marginBottom: '0.5rem' }}>Pending organization verification</h3>
+              <p style={{ color: 'var(--gray-500)', margin: 0, fontSize: '0.9rem' }}>Review the submitted license details before enabling hospital or blood-bank operations.</p>
+            </div>
+            <div className="card" style={{ padding: 0 }}>
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Organization</th><th>Type</th><th>License</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {pendingOrganizations.length === 0 ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--gray-400)' }}>No organizations are waiting for verification.</td></tr> : pendingOrganizations.map(item => {
+                      const profile = item.hospitalProfile || item.bloodBankProfile;
+                      return <tr key={item.id}>
+                        <td style={{ fontWeight: 600 }}>{profile?.name || '—'}</td>
+                        <td>{item.role === 'HOSPITAL' ? 'Hospital' : 'Blood Bank'}</td>
+                        <td style={{ fontFamily: 'monospace' }}>{profile?.licenseNumber || '—'}</td>
+                        <td>{item.email}</td>
+                        <td>{profile?.phone || '—'}</td>
+                        <td><div style={{ display: 'flex', gap: '0.4rem' }}><button className="btn btn-primary btn-xs" onClick={() => void updateVerification(item.id, 'APPROVED')}>Approve</button><button className="btn btn-secondary btn-xs" style={{ color: 'var(--error)' }} onClick={() => void updateVerification(item.id, 'REJECTED')}>Reject</button></div></td>
+                      </tr>;
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

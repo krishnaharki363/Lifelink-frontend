@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Droplets, Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 
 type AuthMode = 'login' | 'register';
 
 const getErrorMessage = (error: unknown): string => {
-  const err = error as { response?: { data?: { errors?: { message?: string; msg?: string }[]; message?: string; error?: string; detail?: string }; status?: number } };
+  const err = error as { response?: { data?: { errors?: { message?: string; msg?: string }[]; message?: string; error?: string; detail?: string }; status?: number; headers?: Record<string, string> } };
   const data = err?.response?.data;
   const validationErrors = Array.isArray(data?.errors)
     ? data!.errors!.map((item) => item?.message || item?.msg).filter(Boolean)
@@ -15,6 +15,10 @@ const getErrorMessage = (error: unknown): string => {
   if (validationErrors.length > 0) return validationErrors.join(' • ');
   const message = data?.message || data?.error || data?.detail;
   if (typeof message === 'string' && message.trim()) return message;
+  if (err?.response?.status === 429) {
+    const retryAfter = err.response.headers?.['retry-after'];
+    return retryAfter ? `Too many attempts. Please try again in ${retryAfter} seconds.` : 'Too many attempts. Please try again later.';
+  }
   if (err?.response?.status === 401) return 'Invalid email or password. Please try again.';
   return 'Unable to complete the request. Please try again.';
 };
@@ -22,8 +26,8 @@ const getErrorMessage = (error: unknown): string => {
 const redirectByRole = (user: { role?: string }) => {
   const routes: Record<string, string> = { 
     ADMIN: '/admin',
-    BLOOD_BANK: '/Blodd_Bank', 
-    BloodBank: '/Blodd_Bank', 
+    BLOOD_BANK: '/blood-bank',
+    BloodBank: '/blood-bank',
     HOSPITAL: '/hospital', 
     DONOR: '/donor' 
   };
@@ -31,6 +35,7 @@ const redirectByRole = (user: { role?: string }) => {
 };
 
 export const Login: React.FC = () => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>('login');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName]   = useState('');
@@ -82,6 +87,10 @@ export const Login: React.FC = () => {
       const data = response.data?.data ?? response.data;
       if (mode === 'login') {
         login(data.accessToken, data.user);
+        if (data.user.verificationStatus && data.user.verificationStatus !== 'APPROVED') {
+          window.location.href = '/pending-verification';
+          return;
+        }
         redirectByRole(data.user);
         return;
       }
@@ -168,7 +177,14 @@ export const Login: React.FC = () => {
               <button
                 key={m}
                 type="button"
-                onClick={() => { resetMessages(); setMode(m); }}
+                onClick={() => {
+                  resetMessages();
+                  if (m === 'register') {
+                    navigate('/register');
+                    return;
+                  }
+                  setMode(m);
+                }}
                 style={{
                   flex: 1, padding: '0.6rem 1rem',
                   borderRadius: 'var(--radius-full)', border: 'none',
@@ -315,7 +331,14 @@ export const Login: React.FC = () => {
 
           <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--gray-500)', fontSize: '0.875rem' }}>
             {mode === 'login' ? "Don't have an account? " : 'Already registered? '}
-            <button type="button" onClick={() => { resetMessages(); setMode(mode === 'login' ? 'register' : 'login'); }} style={{ color: 'var(--red-600)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>
+            <button type="button" onClick={() => {
+              resetMessages();
+              if (mode === 'login') {
+                navigate('/register');
+                return;
+              }
+              setMode('login');
+            }} style={{ color: 'var(--red-600)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>
               {mode === 'login' ? 'Register here' : 'Sign in'}
             </button>
           </p>
