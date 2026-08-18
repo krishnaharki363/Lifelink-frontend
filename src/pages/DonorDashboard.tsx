@@ -133,10 +133,10 @@ export const DonorDashboard: React.FC = () => {
         type: 'appointment'
       }));
 
-      // 3. Fetch all requests to extract matched direct requests
-      const allReqsRes = await api.get('/blood-requests');
-      const matchedRequestsList = allReqsRes.data.data.data
-        .filter((r: any) => r.matchedDonorId && r.hospital)
+      // 3. Fetch only requests matched to this authenticated donor
+      const matchedReqsRes = await api.get('/blood-requests?mine=true&limit=100');
+      const matchedRequestsList = matchedReqsRes.data.data.data
+        .filter((r: any) => r.hospital)
         .map((r: any) => ({
           id: r.id,
           date: r.createdAt,
