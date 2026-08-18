@@ -6,6 +6,11 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
+import {
+  calculateStockPercentage,
+  parseStockInput,
+  stockInputValueFromChange,
+} from '../utils/inventory';
 
 type Tab = 'overview' | 'inventory' | 'requests' | 'donors' | 'analytics';
 
@@ -59,7 +64,7 @@ export const BloodBankDashboard: React.FC = () => {
   
   // Edit stock state
   const [editingType, setEditingType] = useState<string | null>(null);
-  const [editUnits, setEditUnits]     = useState<number>(0);
+  const [editUnits, setEditUnits]     = useState('0');
 
   // Notifications state
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -138,6 +143,22 @@ export const BloodBankDashboard: React.FC = () => {
     }
   };
 
+  const handleRejectInventoryMatch = async (requestId: string) => {
+    if (!window.confirm('Reject this inventory match and reopen the request for donors?')) {
+      return;
+    }
+
+    try {
+      await api.post(`/blood-requests/${requestId}/reject-inventory`);
+      setReqSuccess('Match rejected. The request is open again for eligible donors.');
+      fetchMatchedRequests();
+      fetchInventory();
+      fetchNotifications();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to reject inventory match');
+    }
+  };
+
   const handleClaimRequest = async (requestId: string) => {
     try {
       await api.post(`/blood-requests/${requestId}/claim-inventory`);
@@ -177,7 +198,7 @@ export const BloodBankDashboard: React.FC = () => {
     try {
       await api.put('/inventory', {
         bloodType,
-        unitsAvailable: editUnits
+        unitsAvailable: parseStockInput(editUnits)
       });
       setEditingType(null);
       fetchInventory();
@@ -215,6 +236,10 @@ export const BloodBankDashboard: React.FC = () => {
   const transitRequests = matchedRequests.filter(r => r.status === 'IN_DELIVERY');
   const completedAppts = appointments.filter(a => a.status === 'COMPLETED');
   const totalUnits = inventory.reduce((sum, item) => sum + (item.unitsAvailableForMatching ?? item.unitsAvailable), 0);
+  const totalStock = inventory.reduce(
+    (sum, item) => sum + (item.unitsAvailableForMatching ?? item.unitsAvailable),
+    0,
+  );
 
   return (
     <div className="dash-layout">
@@ -375,7 +400,10 @@ export const BloodBankDashboard: React.FC = () => {
                         {r.status === 'PENDING' ? (
                           <button className="btn btn-primary btn-sm" onClick={() => handleClaimRequest(r.id)}>Claim with Stock</button>
                         ) : r.status === 'MATCHED_INVENTORY' ? (
-                          <button className="btn btn-primary btn-sm" onClick={() => handleConfirmInventoryMatch(r.id)}>Confirm Match</button>
+                          <div style={{ display: 'flex', gap: '0.35rem' }}>
+                            <button className="btn btn-primary btn-sm" onClick={() => handleConfirmInventoryMatch(r.id)}>Confirm Match</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleRejectInventoryMatch(r.id)} style={{ color: 'var(--error)' }}>Reject</button>
+                          </div>
                         ) : (
                           <button className="btn btn-primary btn-sm" onClick={() => handleFulfillRequest(r.id)} style={{ background: 'var(--success)', borderColor: 'var(--success)' }}>Mark Delivered</button>
                         )}
@@ -420,7 +448,8 @@ export const BloodBankDashboard: React.FC = () => {
                         type="number" 
                         className="form-input" 
                         value={editUnits} 
-                        onChange={e => setEditUnits(parseInt(e.target.value) || 0)} 
+                        onChange={e => setEditUnits(stockInputValueFromChange(e.target.value))}
+                        onFocus={e => e.currentTarget.select()}
                         style={{ textAlign: 'center', fontSize: '1.2rem', padding: '0.25rem' }} 
                         min={0}
                         max={1000}
@@ -434,7 +463,7 @@ export const BloodBankDashboard: React.FC = () => {
                     <>
                       <p style={{ fontSize: '2.5rem', fontWeight: 900, fontFamily: 'var(--font-display)', color: 'var(--red-600)', margin: '0 0 0.5rem' }}>{item.unitsAvailableForMatching ?? item.unitsAvailable}</p>
                       <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)', margin: '0 0 0.5rem' }}>{item.unitsReserved ?? 0} reserved · {item.unitsAvailable} total</p>
-                      <button className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => { setEditingType(item.bloodType); setEditUnits(item.unitsAvailable); }}>
+                      <button className="btn btn-secondary btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => { setEditingType(item.bloodType); setEditUnits(String(item.unitsAvailable)); }}>
                         Edit Stock
                       </button>
                     </>
@@ -486,7 +515,10 @@ export const BloodBankDashboard: React.FC = () => {
                               <button className="btn btn-primary btn-xs" onClick={() => handleClaimRequest(r.id)}>Claim with Stock</button>
                             )}
                             {r.status === 'MATCHED_INVENTORY' && (
-                              <button className="btn btn-primary btn-xs" onClick={() => handleConfirmInventoryMatch(r.id)}>Confirm Match</button>
+                              <>
+                                <button className="btn btn-primary btn-xs" onClick={() => handleConfirmInventoryMatch(r.id)}>Confirm Match</button>
+                                <button className="btn btn-secondary btn-xs" onClick={() => handleRejectInventoryMatch(r.id)} style={{ color: 'var(--error)' }}>Reject</button>
+                              </>
                             )}
                             {r.status === 'IN_DELIVERY' && (
                               <button className="btn btn-primary btn-xs" onClick={() => handleFulfillRequest(r.id)} style={{ background: 'var(--success)', borderColor: 'var(--success)' }}>Mark Delivered</button>
@@ -568,9 +600,8 @@ export const BloodBankDashboard: React.FC = () => {
                 <h3>Stock Level Breakdown</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
                   {inventory.map(item => {
-                    const maxCapacity = 100;
                     const available = item.unitsAvailableForMatching ?? item.unitsAvailable;
-                    const pct = Math.min(Math.round((available / maxCapacity) * 100), 100);
+                    const pct = calculateStockPercentage(available, totalStock);
                     return (
                       <div key={item.bloodType}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>

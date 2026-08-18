@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
+import { calculateStockPercentage } from '../utils/inventory';
 
 type Tab = 'overview' | 'organizations' | 'donors' | 'hospitals' | 'requests' | 'analytics';
 
@@ -72,6 +73,7 @@ export const AdminDashboard: React.FC = () => {
   const [requestsList, setRequestsList] = useState<any[]>([]);
   const [pendingOrganizations, setPendingOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const totalBloodStock = bloodStock.reduce((sum, stock) => sum + (Number(stock.totalUnits) || 0), 0);
 
   // ─── Fetching Data ─────────────────────────────────────────────────────────
 
@@ -482,8 +484,7 @@ export const AdminDashboard: React.FC = () => {
                   <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>No stock inventory available in system.</p>
                 ) : (
                   bloodStock.map(stock => {
-                    const maxVal = Math.max(...bloodStock.map((s: any) => s.totalUnits || 0), 100);
-                    const pct = Math.round((stock.totalUnits / maxVal) * 100);
+                    const pct = calculateStockPercentage(Number(stock.totalUnits) || 0, totalBloodStock);
                     return (
                       <div key={stock.bloodType}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
