@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   Droplet, LayoutDashboard, Package, ClipboardList, Users,
-  BarChart3, LogOut, Plus, Search, AlertTriangle, CheckCircle2,
+  LogOut, Plus, Search, AlertTriangle, CheckCircle2,
   Activity, Phone, MapPin, X, Bell
 } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 
-type Tab = 'overview' | 'inventory' | 'requests' | 'donors' | 'analytics';
+type Tab = 'overview' | 'inventory' | 'requests' | 'donors';
 
 const NAV: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: 'overview',   label: 'Overview',       icon: LayoutDashboard },
   { key: 'inventory',  label: 'Blood Inventory', icon: Package },
   { key: 'requests',   label: 'Blood Requests',  icon: ClipboardList },
   { key: 'donors',     label: 'Donor Matching',  icon: Users },
-  { key: 'analytics',  label: 'Analytics',       icon: BarChart3 },
 ];
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -167,7 +166,13 @@ export const HospitalDashboard: React.FC = () => {
     setSearchingDonors(true);
     setMatchedDonors([]);
     try {
-      const res = await api.get(`/donors/search?bloodType=${donorSearchBlood}&city=${donorSearchCity}`);
+      const params = new URLSearchParams({ bloodType: donorSearchBlood });
+      const city = donorSearchCity.trim();
+      if (city) {
+        params.set('city', city);
+      }
+
+      const res = await api.get(`/donors/search?${params.toString()}`);
       setMatchedDonors(res.data.data.data);
     } catch (err: any) {
       alert(err.response?.data?.message || 'Donor search failed');
@@ -342,7 +347,7 @@ export const HospitalDashboard: React.FC = () => {
               })}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+            <div style={{ marginBottom: '1.25rem' }}>
               {/* Active Matches list */}
               <div className="card">
                 <h3 style={{ marginBottom: '1.25rem' }}>Matched Blood Requests (Pending Completion)</h3>
@@ -374,21 +379,6 @@ export const HospitalDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* System summary */}
-              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h3 style={{ margin: 0 }}>Analytics Summary</h3>
-                {[
-                  { label: 'Total requests created', val: `${requests.length} requests` },
-                  { label: 'Active matches', val: `${matchedRequests.length} matches` },
-                  { label: 'Fulfilled requests', val: `${fulfilledRequests.length} closed` },
-                  { label: 'Cancellation rate', val: `${Math.round((requests.filter(r => r.status === 'CANCELLED').length / (requests.length || 1)) * 100)}%` },
-                ].map(m => (
-                  <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--gray-100)' }}>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>{m.label}</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--gray-900)' }}>{m.val}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}
@@ -566,37 +556,6 @@ export const HospitalDashboard: React.FC = () => {
                     )}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── ANALYTICS ── */}
-        {tab === 'analytics' && (
-          <div className="animate-fade-up">
-            <div className="grid-2" style={{ gap: '1.25rem' }}>
-              <div className="card">
-                <h3>Request Outcomes</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                  {[
-                    { label: 'Open requests',        value: openRequests.length,      total: requests.length },
-                    { label: 'Matched requests',      value: matchedRequests.length,   total: requests.length },
-                    { label: 'Fulfilled requests',    value: fulfilledRequests.length, total: requests.length },
-                  ].map(item => {
-                    const pct = Math.round((item.value / (item.total || 1)) * 100);
-                    return (
-                      <div key={item.label}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
-                          <span>{item.label}</span>
-                          <strong>{item.value} ({pct}%)</strong>
-                        </div>
-                        <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${pct}%`, background: 'var(--red-600)' }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             </div>
           </div>
