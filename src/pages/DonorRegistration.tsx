@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import api from '../services/api';
 import {
-  Droplets, User, Heart, Calendar, Phone, Building2,
+  Droplets, User, Heart, Calendar, Phone, Building2, Eye, EyeOff,
   MapPin, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, Check
 } from 'lucide-react';
 
@@ -42,6 +42,8 @@ export const DonorRegistration: React.FC = () => {
   const [fullAddress, setFullAddress] = useState('');
   const [password, setPassword]       = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Health
   const [weight, setWeight]                   = useState('');
@@ -54,7 +56,7 @@ export const DonorRegistration: React.FC = () => {
 
   // Availability
   const [availableToDonate, setAvailableToDonate] = useState('yes');
-  const [preferredContactMethod, setPreferredContactMethod] = useState('phone');
+  const preferredContactMethod = 'phone';
 
   // Emergency
   const [emergencyName, setEmergencyName]             = useState('');
@@ -295,11 +297,21 @@ export const DonorRegistration: React.FC = () => {
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Password *</label>
-                    <input className="form-input" type="password" placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+                    <div style={{ position: 'relative' }}>
+                      <input className="form-input" type={showPassword ? 'text' : 'password'} placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} style={{ paddingRight: '2.8rem' }} />
+                      <button type="button" onClick={() => setShowPassword(current => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', color: 'var(--gray-400)', padding: 0, cursor: 'pointer' }}>
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Confirm Password *</label>
-                    <input className="form-input" type="password" placeholder="Repeat password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
+                    <div style={{ position: 'relative' }}>
+                      <input className="form-input" type={showConfirmPassword ? 'text' : 'password'} placeholder="Repeat password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required style={{ paddingRight: '2.8rem' }} />
+                      <button type="button" onClick={() => setShowConfirmPassword(current => !current)} aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', color: 'var(--gray-400)', padding: 0, cursor: 'pointer' }}>
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -365,17 +377,14 @@ export const DonorRegistration: React.FC = () => {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Preferred Contact Method *</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.25rem' }}>
-                    {[['phone','📞 Phone Call'],['sms','💬 SMS'],['email','✉️ Email']].map(([v, l]) => (
-                      <button key={v} type="button" onClick={() => setPreferredContactMethod(v)} style={{
-                        padding: '0.9rem 0.75rem', borderRadius: 'var(--radius-md)', textAlign: 'center',
-                        border: `2px solid ${preferredContactMethod === v ? 'var(--red-500)' : 'var(--border)'}`,
-                        background: preferredContactMethod === v ? 'var(--red-50)' : '#fff',
-                        color: preferredContactMethod === v ? 'var(--red-700)' : 'var(--gray-600)',
-                        fontWeight: preferredContactMethod === v ? 700 : 500,
-                        cursor: 'pointer', fontSize: '0.9rem', transition: 'all var(--t-fast)',
-                      }}>{l}</button>
-                    ))}
+                  <div style={{ marginTop: '0.25rem' }}>
+                    <div style={{
+                      padding: '0.9rem 0.75rem', borderRadius: 'var(--radius-md)', textAlign: 'center',
+                      border: '2px solid var(--red-500)', background: 'var(--red-50)',
+                      color: 'var(--red-700)', fontWeight: 700, fontSize: '0.9rem',
+                    }}>
+                      📞 Phone Call
+                    </div>
                   </div>
                 </div>
               </div>
@@ -478,6 +487,8 @@ const OrganizationRegistration: React.FC<{ role: Exclude<RegistrationRole, 'DONO
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -551,8 +562,24 @@ const OrganizationRegistration: React.FC<{ role: Exclude<RegistrationRole, 'DONO
               <div className="form-group"><label className="form-label">Email Address *</label><input className="form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <div className="form-group"><label className="form-label">Password *</label><input className="form-input" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} /></div>
-              <div className="form-group"><label className="form-label">Confirm Password *</label><input className="form-input" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required /></div>
+              <div className="form-group">
+                <label className="form-label">Password *</label>
+                <div style={{ position: 'relative' }}>
+                  <input className="form-input" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={8} style={{ paddingRight: '2.8rem' }} />
+                  <button type="button" onClick={() => setShowPassword(current => !current)} aria-label={showPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', color: 'var(--gray-400)', padding: 0, cursor: 'pointer' }}>
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Confirm Password *</label>
+                <div style={{ position: 'relative' }}>
+                  <input className="form-input" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required style={{ paddingRight: '2.8rem' }} />
+                  <button type="button" onClick={() => setShowConfirmPassword(current => !current)} aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', color: 'var(--gray-400)', padding: 0, cursor: 'pointer' }}>
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
               <button type="button" onClick={onBack} className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}>Back</button>
